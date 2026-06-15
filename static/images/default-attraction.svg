@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300">
+  <!-- 背景 -->
+  <rect width="400" height="300" fill="#f0f0f0"/>
+  
+  <!-- 渐变背景 -->
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:0.1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:0.1" />
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#grad)"/>
+  
+  <!-- 景点图标 -->
+  <circle cx="200" cy="120" r="50" fill="#667eea" opacity="0.2"/>
+  <path d="M 200 80 L 230 130 L 170 130 Z" fill="#667eea" opacity="0.5"/>
+  <rect x="185" y="135" width="30" height="40" fill="#667eea" opacity="0.5"/>
+  
+  <!-- 文字 -->
+  <text x="200" y="220" font-size="18" font-weight="bold" text-anchor="middle" fill="#999">
+    景点图片
+  </text>
+  <text x="200" y="250" font-size="14" text-anchor="middle" fill="#ccc">
+    暂无图片
+  </text>
+</svg>
