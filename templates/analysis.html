@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>数据分析 - 北京景点评论分析系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/font.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/xadmin.css') }}">
+    <script src="{{ url_for('static',filename='lib/layui/layui.js') }}"></script>
+    <script src="{{ url_for('static',filename='js/jquery.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <style>
+        body {
+            background-color: #f5f7fa;
+            padding: 20px;
+        }
+        .analysis-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .page-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        }
+        .page-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+        }
+        .page-header p {
+            margin: 0;
+            opacity: 0.9;
+        }
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+        }
+        .stat-card .icon {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        .stat-card .label {
+            color: #666;
+            font-size: 14px;
+        }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+        .chart-card h3 {
+            margin: 0 0 20px 0;
+            color: #333;
+            font-size: 18px;
+            border-left: 4px solid #667eea;
+            padding-left: 15px;
+        }
+        .chart-container {
+            width: 100%;
+            height: 400px;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="analysis-container">
+        <!-- 页面标题 -->
+        <div class="page-header">
+            <h1><i class="layui-icon layui-icon-chart"></i> 北京景点数据分析</h1>
+            <p>基于去哪儿网数据的综合分析报告</p>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-cards">
+            <div class="stat-card">
+                <div class="icon"><i class="layui-icon layui-icon-location"></i></div>
+                <div class="value" id="totalAttractions">-</div>
+                <div class="label">景点总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="layui-icon layui-icon-dialogue"></i></div>
+                <div class="value" id="totalComments">-</div>
+                <div class="label">评论总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="layui-icon layui-icon-star"></i></div>
+                <div class="value" id="avgRating">-</div>
+                <div class="label">平均评分</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="layui-icon layui-icon-picture"></i></div>
+                <div class="value" id="imageComments">-</div>
+                <div class="label">有图评论</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="layui-icon layui-icon-home"></i></div>
+                <div class="value" id="totalCities">-</div>
+                <div class="label">覆盖城市</div>
+            </div>
+            <div class="stat-card">
+                <div class="icon"><i class="layui-icon layui-icon-user"></i></div>
+                <div class="value" id="activeUsers">-</div>
+                <div class="label">活跃用户</div>
+            </div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="charts-grid">
+            <!-- 1. 景点评分分布 -->
+            <div class="chart-card">
+                <h3>景点评分分布</h3>
+                <div id="ratingChart" class="chart-container"></div>
+            </div>
+
+            <!-- 2. 情感分析 -->
+            <div class="chart-card">
+                <h3>评论情感分析</h3>
+                <div id="sentimentChart" class="chart-container"></div>
+            </div>
+
+            <!-- 3. 城市景点数量 -->
+            <div class="chart-card">
+                <h3>各城市景点数量</h3>
+                <div id="cityChart" class="chart-container"></div>
+            </div>
+
+            <!-- 4. 有图评论占比 -->
+            <div class="chart-card">
+                <h3>有图评论占比</h3>
+                <div id="imageRatioChart" class="chart-container"></div>
+            </div>
+
+            <!-- 5. 评论数TOP10景点 -->
+            <div class="chart-card full-width">
+                <h3>评论数TOP10景点</h3>
+                <div id="topCommentedChart" class="chart-container"></div>
+            </div>
+
+            <!-- 6. 评分TOP10景点 -->
+            <div class="chart-card full-width">
+                <h3>评分TOP10景点</h3>
+                <div id="topRatedChart" class="chart-container"></div>
+            </div>
+
+            <!-- 7. 评论时间分布 -->
+            <div class="chart-card">
+                <h3>评论时间分布</h3>
+                <div id="timeChart" class="chart-container"></div>
+            </div>
+
+            <!-- 8. 评论长度分布 -->
+            <div class="chart-card">
+                <h3>评论长度分布</h3>
+                <div id="lengthChart" class="chart-container"></div>
+            </div>
+
+            <!-- 9. 热门关键词 -->
+            <div class="chart-card full-width">
+                <h3>热门关键词云</h3>
+                <div id="keywordsChart" class="chart-container"></div>
+            </div>
+
+            <!-- 10. 用户活跃度 -->
+            <div class="chart-card">
+                <h3>用户活跃度TOP15</h3>
+                <div id="userActivityChart" class="chart-container"></div>
+            </div>
+
+            <!-- 11. 门票价格分布 -->
+            <div class="chart-card">
+                <h3>门票价格分布</h3>
+                <div id="priceChart" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 页面加载完成后初始化
+        $(document).ready(function() {
+            loadOverallStatistics();
+            loadAllCharts();
+        });
+
+        // 加载综合统计数据
+        function loadOverallStatistics() {
+            axios.get('/analysis/overall_statistics')
+                .then(response => {
+                    if (response.data.code === 200) {
+                        const data = response.data.data;
+                        $('#totalAttractions').text(data.total_attractions || 0);
+                        $('#totalComments').text(data.total_comments || 0);
+                        $('#avgRating').text(data.avg_rating || 0);
+                        $('#imageComments').text(data.image_comments || 0);
+                        $('#totalCities').text(data.total_cities || 0);
+                        $('#activeUsers').text(data.active_users || 0);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载统计数据失败:', error);
+                });
+        }
+
+        // 加载所有图表
+        function loadAllCharts() {
+            loadRatingChart();
+            loadSentimentChart();
+            loadCityChart();
+            loadImageRatioChart();
+            loadTopCommentedChart();
+            loadTopRatedChart();
+            loadTimeChart();
+            loadLengthChart();
+            loadKeywordsChart();
+            loadUserActivityChart();
+            loadPriceChart();
+        }
+
+        // 1. 景点评分分布
+        function loadRatingChart() {
+            axios.get('/analysis/rating_distribution')
+                .then(response => {
+                    if (response.data.code === 200) {
+                        const data = response.data.data;
+                        const chart = echarts.init(document.getElementById('ratingChart'));
+                        const option = {
+                            tooltip: {
+                                trigger: 'axis',
+                                axisPointer: { type: 'shadow' }
+                            },
+                            xAxis: {
+                                type: 'category',
+                                data: data.map(item => item.rating + '分'),
+                                axisLabel: { rotate: 0 }
+                            },
+                            yAxis: { type: 'value', name: '景点数量' },
+                            series: [{
+                                data: data.map(item => item.count),
+                                type: 'bar',
+                                itemStyle: {
+                                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                        { offset: 0, color: '#667eea' },
+                                        { offset: 1, color: '#764ba2' }
+                                    ])
+                                },
+                                label: { show: true, position: 'top' }
+                            }]
+                        };
+                        chart.setOption(option);
+                        window.addEventListener('resize', () => chart.resize());
+                    }
+                })
+                .catch(error => {
+                    console.error('加载评分分布失败:', error);
+                });
+        }
+
+        // 2. 情感分析
+        function loadSentimentChart() {
+            axios.get('/analysis/sentiment_analysis')
+                .then(response => {
+                    if (response.data.code === 200) {
+                        const data = response.data.data;
+                        const chart = echarts.init(document.getElementById('sentimentChart'));
+                        const option = {
+                            tooltip: { trigger: 'item' },
+                            legend: { orient: 'vertical', left: 'left' },
+                            series: [{
+                                name: '情感分布',
+                                type: 'pie',
+                                radius: '60%',
+                                data: data.map(item => ({
+                                    value: item.count,
+                                    name: item.sentiment
+                                })),
+                                emphasis: {
+                                    itemStyle: {
+                                        shadowBlur: 10,
+                                        shadowOffsetX: 0,
+                                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                                    }
+                                },
+                                label: { formatter: '{b}: {c} ({d}%)' },
+                                color: ['#67C23A', '#F56C6C', '#909399']
+                            }]
+                        };
+                        chart.setOption(option);
+                        window.addEventListener('resize', () => chart.resize());
+                    }
+                })
+                .catch(error => {
+                    console.error('加载情感分析失败:', error);
+                });
+        }
+
+        // 3. 城市景点数量
+        function loadCityChart() {
+            axios.get('/analysis/city_attraction_count')
+                .then(response => {
+                    if (response.data.code === 200) {
+                        const data = response.data.data;
+                        const chart = echarts.init(document.getElementById('cityChart'));
+                        const option = {
+                            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                            xAxis: { type: 'value', name: '景点数量' },
+                            yAxis: {
+                                type: 'category',
+                                data: data.map(item => item.city).reverse()
+                            },
+                            series: [{
+                                data: data.map(item => item.count).reverse(),
+                                type: 'bar',
+                                itemStyle: { color: '#409EFF' },
+                                label: { show: true, position: 'right' }
+                            }]
+                        };
+                        chart.setOption(option);
+                        window.addEventListener('resize', () => chart.resize());
+                    }
+                })
+                .catch(error => {
+                    console.error('加载城市景点数量失败:', error);
+                });
+        }
+
+        // 4. 有图评论占比
+        function loadImageRatioChart() {
+            axios.get('/analysis/image_comment_ratio')
+                .then(response => {
+                    if (response.data.code === 200) {
+                        const data = response.data.data;
+                        const chart = echarts.init(document.getElementById('imageRatioChart'));
+                        const option = {
+                            tooltip: { trigger: 'item' },
+                            series: [{
+                                name: '评论类型',
+                                type: 'pie',
+                                radius: ['40%', '70%'],
+                                avoidLabelOverlap: false,
+                                itemStyle: {
+                                    borderRadius: 10,
+                                    borderColor: '#fff',
+                                    borderWidth: 2
+                                },
+                                label: { show: true, formatter: '{b}: {d}%' },
+                                data: data.map(item => ({
+                                    value: item.count,
+                                    name: item.type
+                                })),
+                                color: ['#E6A23C', '#909399']
+                            }]
+                        };
+                        chart.setOption(option);
+                        window.addEventListener('resize', () => chart.resize());
+                    }
+                })
+                .catch(error => {
+                    console.error('加载有图评论占比失败:', error);
+                });
+        }
+
+        // 5. 评论数TOP10景点
+        function loadTopCommentedChart() {
+            axios.get('/analysis/top_commented_attractions')
+                .then(response => {
+                    if (response.data.code === 200) {
+                        const data = response.data.data;
+                        const chart = echarts.init(document.getElementById('topCommentedChart'));
+                        const option = {
+                            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                            grid: { left: '15%', right: '10%' },
+                            xAxis: { type: 'value', name: '评论数' },
+                            yAxis: {
+                                type: 'category',
+                                data: data.map(item => item.name).reverse(),
+                                axisLabel: { interval: 0, fontSize: 12 }
+                            },
+                            series: [{
+                                data: data.map(item => item.count).reverse(),
+                                type: 'bar',
+                                itemStyle: {
+                                    color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                                        { offset: 0, color: '#F56C6C' },
+                                        { offset: 1, color: '#E6A23C' }
+                                    ])
+                                },
+                                label: { show: true, position: 'right' }
+                            }]
+                        };
+                        chart.setOption(option);
+                        window.addEventListener('resize', () => chart.resize());
+                    }
+                })
+                .catch(error => {
+                    console.error('加载热门景点失败:', error);
+                });
+        }
+
+        // 6. 评分TOP10景点
+        function loadTopRatedChart() {
+            axios.get('/analysis/top_rated_attractions')
+                .then(response => {
+                    if (response.data.code === 200) {
+                        const data = response.data.data;
+                        const chart = echarts.init(document.getElementById('topRatedChart'));
+                        const option = {
+                            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                            grid: { left: '15%', right: '10%' },
+                            xAxis: { type: 'value', name: '评分', max: 5 },
+                            yAxis: {
+                                type: 'category',
+                                data: data.map(item => item.name).reverse(),
+                                axisLabel: { interval: 0, fontSize: 12 }
+                            },
+                            series: [{
+                                data: data.map(item => item.rating).reverse(),
+                                type: 'bar',
+                                itemStyle: {
+                                    color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                                        { offset: 0, color: '#67C23A' },
+                                        { offset: 1, color: '#85CE61' }
+                                    ])
+                                },
+                                label: { show: true, position: 'right', formatter: '{c}分' }
+                            }]
+                        };
+                        chart.setOption(option);
+                        window.addEventListener('resize', () => chart.resize());
+                    }
+                })
+                .catch(error => {
+                    console.error('加载高分景点失败:', error);
+                });
+        }
+
+        // 7. 评论时间分布
+        function loadTimeChart() {
+            axios.get('/analysis/comment_time_distribution')
+                .then(response => {
+                    if (response.data.code === 200) {
+                        const data = response.data.data;
+                        const chart = echarts.init(document.getElementById('timeChart'));
+                        const option = {
+                            tooltip: { trigger: 'axis' },
+                            xAxis: {
+                                type: 'category',
+                                data: data.map(item => item.year),
+                                axisLabel: { rotate: 45 }
+                            },
+                            yAxis: { type: 'value', name: '评论数' },
+                            series: [{
+                                data: data.map(item => item.count),
+                                type: 'line',
+                                smooth: true,
+                                areaStyle: {
+                                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                        { offset: 0, color: 'rgba(102, 126, 234, 0.5)' },
+                                        { offset: 1, color: 'rgba(102, 126, 234, 0.1)' }
+                                    ])
+                                },
+                                itemStyle: { color: '#667eea' },
+                                label: { show: true, position: 'top' }
+                            }]
+                        };
+                        chart.setOption(option);
+                        window.addEventListener('resize', () => chart.resize());
+                    }
+                })
+                .catch(error => {
+                    console.error('加载评论时间分布失败:', error);
+                });
+        }
+
+        // 8. 评论长度分布
+        function loadLengthChart() {
+            axios.get('/analysis/comment_length_distribution')
+                .then(response => {
+                    if (response.data.code === 200) {
+                        const data = response.data.data;
+                        const chart = echarts.init(document.getElementById('lengthChart'));
+                        const option = {
+                            tooltip: { trigger: 'item' },
+                            legend: { orient: 'vertical', left: 'left' },
+                            series: [{
+                                name: '评论长度',
+                                type: 'pie',
+                                radius: '60%',
+                                data: data.map(item => ({
+                                    value: item.count,
+                                    name: item.type
+                                })),
+                                emphasis: {
+                                    itemStyle: {
+                                        shadowBlur: 10,
+                                        shadowOffsetX: 0,
+                                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                                    }
+                                },
+                                label: { formatter: '{b}: {c} ({d}%)' }
+                            }]
+                        };
+                        chart.setOption(option);
+                        window.addEventListener('resize', () => chart.resize());
+                    }
+                })
+                .catch(error => {
+                    console.error('加载评论长度分布失败:', error);
+                });
+        }
+
+        // 9. 热门关键词
+        function loadKeywordsChart() {
+            axios.get('/analysis/hot_keywords')
+                .then(response => {
+                    if (response.data.code === 200) {
+                        const data = response.data.data;
+                        const chart = echarts.init(document.getElementById('keywordsChart'));
+                        
+                        // 检查是否支持词云
+                        if (typeof echarts.wordCloud !== 'undefined') {
+                            // 使用词云图
+                            const option = {
+                                tooltip: {},
+                                series: [{
+                                    type: 'wordCloud',
+                                    shape: 'circle',
+                                    left: 'center',
+                                    top: 'center',
+                                    width: '90%',
+                                    height: '90%',
+                                    sizeRange: [14, 60],
+                                    rotationRange: [-45, 45],
+                                    rotationStep: 45,
+                                    gridSize: 8,
+                                    drawOutOfBound: false,
+                                    textStyle: {
+                                        fontFamily: 'sans-serif',
+                                        fontWeight: 'bold',
+                                        color: function () {
+                                            return 'rgb(' + [
+                                                Math.round(Math.random() * 160),
+                                                Math.round(Math.random() * 160),
+                                                Math.round(Math.random() * 160)
+                                            ].join(',') + ')';
+                                        }
+                                    },
+                                    data: data.map(item => ({
+                                        name: item.keyword,
+                                        value: item.count
+                                    }))
+                                }]
+                            };
+                            chart.setOption(option);
+                        } else {
+                            // 使用柱状图作为备选
+                            const option = {
+                                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                                grid: { left: '10%', right: '10%' },
+                                xAxis: {
+                                    type: 'category',
+                                    data: data.map(item => item.keyword),
+                                    axisLabel: { rotate: 45, interval: 0, fontSize: 11 }
+                                },
+                                yAxis: { type: 'value', name: '出现次数' },
+                                series: [{
+                                    data: data.map(item => item.count),
+                                    type: 'bar',
+                                    itemStyle: {
+                                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                            { offset: 0, color: '#667eea' },
+                                            { offset: 1, color: '#764ba2' }
+                                        ])
+                                    },
+                                    label: { show: true, position: 'top', fontSize: 10 }
+                                }]
+                            };
+                            chart.setOption(option);
+                        }
+                        window.addEventListener('resize', () => chart.resize());
+                    }
+                })
+                .catch(error => {
+                    console.error('加载热门关键词失败:', error);
+                });
+        }
+
+        // 10. 用户活跃度
+        function loadUserActivityChart() {
+            axios.get('/analysis/user_activity')
+                .then(response => {
+                    if (response.data.code === 200) {
+                        const data = response.data.data;
+                        const chart = echarts.init(document.getElementById('userActivityChart'));
+                        const option = {
+                            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                            xAxis: { type: 'value', name: '评论数' },
+                            yAxis: {
+                                type: 'category',
+                                data: data.map(item => item.username).reverse(),
+                                axisLabel: { interval: 0, fontSize: 11 }
+                            },
+                            series: [{
+                                data: data.map(item => item.count).reverse(),
+                                type: 'bar',
+                                itemStyle: { color: '#909399' },
+                                label: { show: true, position: 'right' }
+                            }]
+                        };
+                        chart.setOption(option);
+                        window.addEventListener('resize', () => chart.resize());
+                    }
+                })
+                .catch(error => {
+                    console.error('加载用户活跃度失败:', error);
+                });
+        }
+
+        // 11. 门票价格分布
+        function loadPriceChart() {
+            axios.get('/analysis/ticket_price_distribution')
+                .then(response => {
+                    if (response.data.code === 200) {
+                        const data = response.data.data;
+                        const chart = echarts.init(document.getElementById('priceChart'));
+                        const option = {
+                            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                            xAxis: {
+                                type: 'category',
+                                data: data.map(item => item.range),
+                                axisLabel: { rotate: 30, interval: 0 }
+                            },
+                            yAxis: { type: 'value', name: '景点数量' },
+                            series: [{
+                                data: data.map(item => item.count),
+                                type: 'bar',
+                                itemStyle: {
+                                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                        { offset: 0, color: '#E6A23C' },
+                                        { offset: 1, color: '#F56C6C' }
+                                    ])
+                                },
+                                label: { show: true, position: 'top' }
+                            }]
+                        };
+                        chart.setOption(option);
+                        window.addEventListener('resize', () => chart.resize());
+                    }
+                })
+                .catch(error => {
+                    console.error('加载门票价格分布失败:', error);
+                });
+        }
+    </script>
+</body>
+</html>

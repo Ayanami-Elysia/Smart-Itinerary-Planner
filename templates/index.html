@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>旅游路径推荐系统 - 管理后台</title>
+
+    <!-- 引入样式文件 -->
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/font.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/xadmin.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='lib/layui/css/layui.css') }}">
+
+    <!-- 引入js文件 -->
+    <script src="{{ url_for('static',filename='lib/layui/layui.js') }}" charset="utf-8"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='js/jquery.min.js') }}"></script>
+
+    <style>
+        /* 基础样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        /* 顶部导航样式 */
+        .header {
+            background: linear-gradient(135deg, #5c6bc0 0%, #7986cb 100%);
+            color: white;
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(92, 107, 192, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .logo p {
+            font-size: 12px;
+            opacity: 0.9;
+            margin: 0;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+            opacity: 0.85;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            opacity: 1;
+            transform: translateY(-2px);
+        }
+
+        .nav-links .active {
+            opacity: 1;
+            border-bottom: 2px solid white;
+            padding-bottom: 3px;
+        }
+
+        /* 主内容样式 */
+        .main-content {
+            max-width: 1400px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        /* 欢迎横幅 */
+        .welcome-banner {
+            background: linear-gradient(135deg, #fff 0%, #f5f7fa 100%);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 40px;
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .banner-content {
+            flex: 1;
+            z-index: 2;
+        }
+
+        .banner-content h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #5c6bc0;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .banner-content p {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 30px;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+
+        .banner-actions {
+            display: flex;
+            gap: 15px;
+            animation: fadeInUp 0.8s ease-out 0.4s both;
+        }
+
+        .banner-image {
+            flex: 0 0 40%;
+            text-align: center;
+        }
+
+        .banner-image img {
+            max-width: 100%;
+            max-height: 300px;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        /* 快速访问卡片 */
+        .quick-access-section {
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f2f5;
+        }
+
+        .card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            padding: 25px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-card:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #5c6bc0, #7986cb);
+        }
+
+        .card-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+            height: 60px;
+            background-color: rgba(92, 107, 192, 0.1);
+            border-radius: 50%;
+            margin-bottom: 15px;
+        }
+
+        .card-icon i {
+            font-size: 26px;
+            color: #5c6bc0;
+        }
+
+        .card-content h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .card-content p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #f0f2f5;
+        }
+
+        .card-stat {
+            font-size: 13px;
+            color: #888;
+        }
+
+        /* 系统状态面板 */
+        .system-status-section {
+            margin-bottom: 40px;
+        }
+
+        .status-panels {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .status-panel {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .status-icon {
+            margin-right: 15px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: rgba(92, 107, 192, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status-icon i {
+            font-size: 24px;
+            color: #5c6bc0;
+        }
+
+        .status-content h4 {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .status-indicator {
+            font-size: 14px;
+            padding: 4px 10px;
+            border-radius: 50px;
+            display: inline-block;
+        }
+
+        .status-indicator.positive {
+            background-color: rgba(76, 175, 80, 0.1);
+            color: #4CAF50;
+        }
+
+        .status-indicator.negative {
+            background-color: rgba(244, 67, 54, 0.1);
+            color: #F44336;
+        }
+
+        .status-indicator.neutral {
+            background-color: rgba(255, 152, 0, 0.1);
+            color: #FF9800;
+        }
+
+        /* 页脚样式 */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            background-color: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            margin-top: 40px;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-info p {
+            margin: 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .footer-links a {
+            font-size: 14px;
+            color: #666;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: #5c6bc0;
+        }
+
+        /* 登录按钮特殊样式 */
+        .login-btn {
+            background: transparent;
+            border: 2px solid white;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .login-btn:hover {
+            background: white;
+            color: #5c6bc0;
+            transform: translateY(-2px);
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                text-align: center;
+                padding: 15px;
+            }
+
+            .logo {
+                margin-bottom: 15px;
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .nav-links {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .welcome-banner {
+                flex-direction: column;
+                padding: 30px;
+            }
+
+            .banner-content {
+                text-align: center;
+                margin-bottom: 30px;
+            }
+
+            .banner-content h1 {
+                font-size: 28px;
+            }
+
+            .banner-content p {
+                font-size: 16px;
+            }
+
+            .banner-actions {
+                justify-content: center;
+            }
+
+            .card-container {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+
+        /* 自定义动画 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-15px);
+            }
+
+            100% {
+                transform: translateY(0);
+            }
+        }
+
+        /* 页面加载动画 */
+        .fade-in {
+            animation: fadeIn 1s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body class="fade-in">
+    <!-- 顶部导航 -->
+
+
+    <!-- 主要内容 -->
+    <main class="main-content">
+        <!-- 欢迎横幅 -->
+        <div class="welcome-banner">
+            <div class="banner-content">
+                <h1>欢迎使用旅游路径推荐系统</h1>
+                <p>智能化的景点管理与推荐平台，助力北京旅游业发展</p>
+                <div class="banner-actions">
+                    <button class="layui-btn layui-btn-normal layui-btn-lg" onclick="location.href='/home'">
+                        <i class="layui-icon layui-icon-console"></i> 进入控制台
+                    </button>
+                    <button class="layui-btn layui-btn-primary layui-btn-lg"
+                        onclick="location.href='#dashboard-section'">
+                        <i class="layui-icon layui-icon-about"></i> 了解更多
+                    </button>
+                </div>
+            </div>
+            <div class="banner-image">
+                <img src="{{ url_for('static', filename='images/aiwrap.png') }}" alt="系统概览">
+            </div>
+        </div>
+
+        <!-- 快速访问卡片 -->
+        <div class="quick-access-section" id="dashboard-section">
+            <h2 class="section-title">系统功能概览</h2>
+            <div class="card-container">
+                <!-- 景点管理卡片 -->
+                <div class="feature-card fade-in-up" onclick="location.href='/attractionslist'">
+                    <div class="card-icon">
+                        <i class="layui-icon layui-icon-location"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>景点管理</h3>
+                        <p>管理北京旅游景点信息，包括景点详情、图片、评分等</p>
+                    </div>
+                    <div class="card-footer">
+                        <span class="card-stat">景点数量: <b>150+</b></span>
+                        <button class="layui-btn layui-btn-xs layui-btn-normal">访问</button>
+                    </div>
+                </div>
+
+                <!-- 评论管理卡片 -->
+                <div class="feature-card fade-in-up" style="animation-delay: 0.2s;"
+                    onclick="location.href='/commentslist'">
+                    <div class="card-icon">
+                        <i class="layui-icon layui-icon-dialogue"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>评论管理</h3>
+                        <p>管理用户评论，监控评论质量，分析用户反馈</p>
+                    </div>
+                    <div class="card-footer">
+                        <span class="card-stat">评论总数: <b>25000+</b></span>
+                        <button class="layui-btn layui-btn-xs layui-btn-normal">访问</button>
+                    </div>
+                </div>
+
+                <!-- 用户管理卡片 -->
+                <div class="feature-card fade-in-up" style="animation-delay: 0.3s;" onclick="location.href='/userlist'">
+                    <div class="card-icon">
+                        <i class="layui-icon layui-icon-user"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>用户管理</h3>
+                        <p>管理系统用户账户，设置权限，跟踪用户活动</p>
+                    </div>
+                    <div class="card-footer">
+                        <span class="card-stat">用户数量: <b>{{ stats.user_count }}</b></span>
+                        <button class="layui-btn layui-btn-xs layui-btn-normal">访问</button>
+                    </div>
+                </div>
+
+                <!-- 数据分析卡片 -->
+                <div class="feature-card fade-in-up" style="animation-delay: 0.4s;" onclick="location.href='/analysis'">
+                    <div class="card-icon">
+                        <i class="layui-icon layui-icon-chart"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>数据分析</h3>
+                        <p>强大的数据可视化和分析工具，洞察景点热度趋势</p>
+                    </div>
+                    <div class="card-footer">
+                        <span class="card-stat">分析报告: <b>{{ stats.report_count }}</b></span>
+                        <button class="layui-btn layui-btn-xs layui-btn-normal">访问</button>
+                    </div>
+                </div>
+
+                <!-- 智能推荐卡片 -->
+                <div class="feature-card fade-in-up" style="animation-delay: 0.5s;"
+                    onclick="location.href='/frontend/attraction_home'">
+                    <div class="card-icon">
+                        <i class="layui-icon layui-icon-star"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>智能推荐</h3>
+                        <p>基于深度学习的个性化景点推荐系统</p>
+                    </div>
+                    <div class="card-footer">
+                        <span class="card-stat">推荐算法: <b>深度学习</b></span>
+                        <button class="layui-btn layui-btn-xs layui-btn-normal">体验</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 系统状态面板 -->
+        <div class="system-status-section">
+            <h2 class="section-title">系统状态</h2>
+            <div class="status-panels">
+                <div class="status-panel">
+                    <div class="status-icon">
+                        <i class="layui-icon layui-icon-ok-circle"></i>
+                    </div>
+                    <div class="status-content">
+                        <h4>系统运行状态</h4>
+                        <div class="status-indicator positive">
+                            <span>正常运行</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-panel">
+                    <div class="status-icon">
+                        <i class="layui-icon layui-icon-engine"></i>
+                    </div>
+                    <div class="status-content">
+                        <h4>数据库连接</h4>
+                        <div class="status-indicator positive">
+                            <span>连接正常</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-panel">
+                    <div class="status-icon">
+                        <i class="layui-icon layui-icon-time"></i>
+                    </div>
+                    <div class="status-content">
+                        <h4>最近更新</h4>
+                        <div class="status-indicator neutral">
+                            <span>{{ stats.last_update }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-panel">
+                    <div class="status-icon">
+                        <i class="layui-icon layui-icon-fire"></i>
+                    </div>
+                    <div class="status-content">
+                        <h4>推荐引擎</h4>
+                        <div class="status-indicator positive">
+                            <span>深度学习模式</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-info">
+                <p>&copy; 2024 旅游路径推荐系统. 基于深度学习的智能旅游推荐平台</p>
+            </div>
+            <div class="footer-links">
+                <a href="/analysis">数据分析</a>
+                <a href="/frontend/attraction_home">用户端</a>
+                <a href="#" onclick="showSystemInfo()">系统信息</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // 使用layui组件
+        layui.use(['layer'], function () {
+            var layer = layui.layer;
+
+            // 页面加载完成后欢迎消息
+            setTimeout(function () {
+                layer.msg('欢迎来到旅游路径推荐系统管理后台', { icon: 6 });
+            }, 1000);
+        });
+
+        // 平滑滚动效果
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // 显示系统信息
+        function showSystemInfo() {
+            layui.use(['layer'], function () {
+                var layer = layui.layer;
+                layer.open({
+                    type: 1,
+                    title: '系统信息',
+                    area: ['500px', '400px'],
+                    content: `
+                        <div style="padding: 20px;">
+                            <h3>旅游路径推荐系统</h3>
+                            <hr style="margin: 15px 0;">
+                            <p><strong>版本:</strong> v2.0</p>
+                            <p><strong>技术栈:</strong> Flask + MySQL + Vue.js</p>
+                            <p><strong>推荐算法:</strong> 深度学习混合推荐</p>
+                            <p><strong>数据来源:</strong> 去哪儿网</p>
+                            <p><strong>景点数量:</strong> 150+</p>
+                            <p><strong>评论数量:</strong> 25000+</p>
+                            <p><strong>支持功能:</strong></p>
+                            <ul style="margin-left: 20px;">
+                                <li>智能景点推荐</li>
+                                <li>用户行为分析</li>
+                                <li>数据可视化</li>
+                                <li>评论情感分析</li>
+                            </ul>
+                        </div>
+                    `
+                });
+            });
+        }
+    </script>
+</body>
+
+</html>

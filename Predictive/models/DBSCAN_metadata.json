@@ -1,0 +1,21 @@
+{
+  "n_clusters": 5,
+  "data_size": 200,
+  "features": [
+    "rating",
+    "comment_count",
+    "visitor_percentage",
+    "综合评分",
+    "热度指数",
+    "avg_comment_rating"
+  ],
+  "metrics": {
+    "轮廓系数": 0.3968831904523663,
+    "Davies-Bouldin指数": 1.4482642096433986,
+    "Calinski-Harabasz指数": 38.36045003940587,
+    "聚类数量": 3,
+    "噪声点数量": 51
+  },
+  "model_name": "DBSCAN",
+  "save_time": "2026-01-30 18:10:01"
+}

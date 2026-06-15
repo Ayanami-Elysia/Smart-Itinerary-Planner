@@ -1,0 +1,21 @@
+{
+  "n_clusters": 5,
+  "data_size": 200,
+  "features": [
+    "rating",
+    "comment_count",
+    "visitor_percentage",
+    "综合评分",
+    "热度指数",
+    "avg_comment_rating"
+  ],
+  "metrics": {
+    "轮廓系数": 0.5816252545363237,
+    "Davies-Bouldin指数": 0.5348910559906807,
+    "Calinski-Harabasz指数": 177.41156443244853,
+    "聚类数量": 5,
+    "噪声点数量": 0
+  },
+  "model_name": "KMeans",
+  "save_time": "2026-01-30 18:10:01"
+}

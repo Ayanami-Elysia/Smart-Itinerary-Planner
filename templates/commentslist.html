@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html class="x-admin-sm">
+<head>
+    <meta charset="UTF-8">
+    <title>评论管理 - 数据分析系统</title>
+    <meta name="renderer" content="webkit|ie-comp|ie-stand">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8,target-densitydpi=low-dpi" />
+    <meta http-equiv="Cache-Control" content="no-siteapp" />
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/font.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='fontAlibaba/iconfont.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/xadmin.css') }}">
+    <script src="{{ url_for('static',filename='lib/layui/layui.js') }}" charset="utf-8"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='js/xadmin.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='js/jquery.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <style>
+        .layui-hidden, .hidden {
+            display: none !important;
+        }
+        .comments-list-container {
+            padding: 15px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .search-bar {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f9fafc;
+            border-radius: 5px;
+        }
+        .btn-group {
+            margin-bottom: 15px;
+        }
+        .layui-table {
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .layui-btn {
+            margin-right: 8px;
+        }
+        .comment-modal .layui-form-item {
+            margin-bottom: 15px;
+        }
+        .comment-modal .layui-form-label {
+            width: 120px;
+        }
+        .comment-modal .layui-input-block {
+            margin-left: 150px;
+        }
+        .comment-content {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .rating-star {
+            color: #ff9800;
+        }
+    </style>
+</head>
+<body class="index">
+
+<div id="commentsApp" class="comments-list-container">
+    <!-- 搜索栏 -->
+    <div class="search-bar layui-form">
+        <div class="layui-form-item">
+            <div class="layui-inline">
+                <label class="layui-form-label">景点名称</label>
+                <div class="layui-input-inline" style="width: 200px;">
+                    <input type="text" v-model="searchAttractionName" placeholder="请输入景点名称" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-inline">
+                <label class="layui-form-label">用户名</label>
+                <div class="layui-input-inline" style="width: 150px;">
+                    <input type="text" v-model="searchUsername" placeholder="请输入用户名" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-inline">
+                <button class="layui-btn layui-btn-normal" @click="searchComments">
+                    <i class="layui-icon">&#xe615;</i>搜索
+                </button>
+                <button class="layui-btn layui-btn-warm" @click="resetSearch">
+                    <i class="layui-icon">&#xe666;</i>重置
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 按钮组 -->
+    <div class="btn-group">
+        <button class="layui-btn layui-btn-normal" @click="showAddModal">
+            <i class="layui-icon">&#xe608;</i>添加评论
+        </button>
+        <button class="layui-btn layui-btn-danger" @click="deleteSelectedComments" v-if="selectedIds.length > 0">
+            <i class="layui-icon">&#xe640;</i>批量删除
+        </button>
+        <button class="layui-btn layui-btn-primary" @click="viewStats">
+            <i class="layui-icon">&#xe629;</i>统计数据
+        </button>
+    </div>
+
+    <!-- 评论列表表格 -->
+    <table class="layui-table" id="commentsTable">
+        <thead>
+            <tr>
+                <th><input type="checkbox" lay-skin="primary" lay-filter="allChoose"></th>
+                <th>ID</th>
+                <th>景点名称</th>
+                <th>用户名</th>
+                <th>评论内容</th>
+                <th>评分</th>
+                <th>图片数</th>
+                <th>评论日期</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr v-for="comment in commentsList" :key="comment.id">
+                <td><input type="checkbox" name="id" :value="comment.id" lay-skin="primary" lay-filter="choose"></td>
+                <td>[[ comment.id ]]</td>
+                <td>[[ comment.attraction_name ]]</td>
+                <td>[[ comment.username || '-' ]]</td>
+                <td>
+                    <div class="comment-content" :title="comment.comment_content">
+                        [[ comment.comment_content ? comment.comment_content.substring(0, 50) + '...' : '-' ]]
+                    </div>
+                </td>
+                <td>
+                    <span v-if="comment.comment_rating" class="rating-star">
+                        [[ '★'.repeat(comment.comment_rating) ]]
+                    </span>
+                    <span v-else>-</span>
+                </td>
+                <td>[[ comment.image_count || 0 ]]</td>
+                <td>[[ comment.comment_date || '-' ]]</td>
+                <td>
+                    <button class="layui-btn layui-btn-xs layui-btn-normal" @click="viewDetail(comment)">
+                        <i class="layui-icon">&#xe705;</i>详情
+                    </button>
+                    <button class="layui-btn layui-btn-xs" @click="showEditModal(comment)">
+                        <i class="layui-icon">&#xe642;</i>编辑
+                    </button>
+                    <button class="layui-btn layui-btn-danger layui-btn-xs" @click="deleteComment(comment.id)">
+                        <i class="layui-icon">&#xe640;</i>删除
+                    </button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 分页 -->
+    <div id="pager" style="margin-top: 15px;"></div>
+
+    <!-- 添加/编辑评论弹窗 -->
+    <div id="commentModal" class="comment-modal layui-hidden">
+        <div class="layui-form" lay-filter="commentForm" style="padding: 20px;">
+            <input type="hidden" v-model="currentComment.id">
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">景点名称 *</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentComment.attraction_name" placeholder="请输入景点名称" class="layui-input" lay-verify="required">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">用户名</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentComment.username" placeholder="请输入用户名" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">评论标题</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentComment.comment_title" placeholder="请输入评论标题" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">评论内容 *</label>
+                <div class="layui-input-block">
+                    <textarea v-model="currentComment.comment_content" placeholder="请输入评论内容" class="layui-textarea" lay-verify="required"></textarea>
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">评分</label>
+                <div class="layui-input-block">
+                    <input type="number" min="0" max="5" v-model="currentComment.comment_rating" placeholder="0-5分" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">评论日期</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentComment.comment_date" placeholder="请输入评论日期" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">图片数量</label>
+                <div class="layui-input-block">
+                    <input type="number" v-model="currentComment.image_count" placeholder="请输入图片数量" class="layui-input">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+var commentsApp = new Vue({
+    el: '#commentsApp',
+    delimiters: ['[[', ']]'],
+    data: {
+        commentsList: [],
+        searchAttractionName: '',
+        searchUsername: '',
+        currentPage: 1,
+        pageSize: 10,
+        totalCount: 0,
+        currentComment: {
+            id: '',
+            attraction_name: '',
+            username: '',
+            comment_title: '',
+            comment_content: '',
+            comment_rating: '',
+            comment_date: '',
+            image_count: ''
+        },
+        selectedIds: [],
+        layerIndex: null,
+        form: null,
+        laypage: null,
+        layer: null
+    },
+    mounted: function() {
+        this.initLayui();
+    },
+    methods: {
+        initLayui: function() {
+            const vm = this;
+            
+            layui.use(['form', 'laypage', 'layer'], function() {
+                vm.form = layui.form;
+                vm.laypage = layui.laypage;
+                vm.layer = layui.layer;
+                
+                vm.form.on('checkbox(allChoose)', function(data) {
+                    const child = $('tbody input[type="checkbox"]');
+                    child.each(function(index, item) {
+                        item.checked = data.elem.checked;
+                    });
+                    vm.form.render('checkbox');
+                    vm.updateSelectedIds();
+                });
+                
+                vm.form.on('checkbox(choose)', function() {
+                    vm.updateSelectedIds();
+                    const child = $('tbody input[type="checkbox"]');
+                    const checked = $('tbody input[type="checkbox"]:checked');
+                    $('thead input[type="checkbox"]').prop('checked', child.length === checked.length);
+                    vm.form.render('checkbox');
+                });
+                
+                vm.loadCommentsList();
+            });
+        },
+        
+        updateSelectedIds: function() {
+            const vm = this;
+            vm.selectedIds = [];
+            $('tbody input[type="checkbox"]:checked').each(function() {
+                vm.selectedIds.push(parseInt($(this).val()));
+            });
+        },
+        
+        loadCommentsList: function() {
+            const vm = this;
+            
+            axios.post('/comments/commentslist', {
+                attraction_name: this.searchAttractionName,
+                username: this.searchUsername,
+                page: this.currentPage,
+                limit: this.pageSize
+            })
+            .then(response => {
+                if (response.data.code === 200) {
+                    vm.commentsList = response.data.data || [];
+                    vm.totalCount = response.data.total || 0;
+                    vm.renderPagination();
+                    vm.form.render();
+                } else {
+                    vm.layer.msg('获取评论列表失败: ' + (response.data.msg || '未知错误'), {icon: 5});
+                }
+            })
+            .catch(error => {
+                console.error('获取评论列表错误:', error);
+                vm.layer.msg('获取评论列表失败，请稍后重试', {icon: 5});
+            });
+        },
+        
+        renderPagination: function() {
+            const vm = this;
+            
+            if (!vm.laypage || !vm.totalCount) return;
+            
+            setTimeout(function() {
+                vm.laypage.render({
+                    elem: 'pager',
+                    count: Number(vm.totalCount),
+                    limit: Number(vm.pageSize),
+                    curr: Number(vm.currentPage),
+                    layout: ['count', 'prev', 'page', 'next', 'limit', 'refresh', 'skip'],
+                    jump: function(obj, first) {
+                        if (!first) {
+                            vm.currentPage = obj.curr;
+                            vm.pageSize = obj.limit;
+                            vm.loadCommentsList();
+                        }
+                    }
+                });
+            }, 0);
+        },
+        
+        searchComments: function() {
+            this.currentPage = 1;
+            this.loadCommentsList();
+        },
+        
+        resetSearch: function() {
+            this.searchAttractionName = '';
+            this.searchUsername = '';
+            this.currentPage = 1;
+            this.loadCommentsList();
+        },
+        
+        showAddModal: function() {
+            this.currentComment = {
+                id: '',
+                attraction_name: '',
+                username: '',
+                comment_title: '',
+                comment_content: '',
+                comment_rating: '',
+                comment_date: '',
+                image_count: ''
+            };
+            this.openModal('添加评论');
+        },
+        
+        showEditModal: function(comment) {
+            this.currentComment = JSON.parse(JSON.stringify(comment));
+            this.openModal('编辑评论');
+        },
+        
+        viewDetail: function(comment) {
+            const vm = this;
+            const content = `
+                <div style="padding: 20px; max-height: 500px; overflow-y: auto;">
+                    <p><strong>景点名称：</strong>${comment.attraction_name || '-'}</p>
+                    <p><strong>用户名：</strong>${comment.username || '-'}</p>
+                    <p><strong>评论标题：</strong>${comment.comment_title || '-'}</p>
+                    <p><strong>评论内容：</strong></p>
+                    <div style="padding: 10px; background-color: #f5f5f5; border-radius: 4px; margin-top: 5px;">
+                        ${comment.comment_content || '-'}
+                    </div>
+                    <p style="margin-top: 10px;"><strong>评分：</strong>${comment.comment_rating ? '★'.repeat(comment.comment_rating) : '-'}</p>
+                    <p><strong>图片数量：</strong>${comment.image_count || 0}</p>
+                    <p><strong>评论日期：</strong>${comment.comment_date || '-'}</p>
+                    <p><strong>城市：</strong>${comment.city || '-'}</p>
+                </div>
+            `;
+            
+            vm.layer.open({
+                type: 1,
+                title: '评论详情',
+                content: content,
+                area: ['600px', 'auto'],
+                btn: ['关闭']
+            });
+        },
+        
+        openModal: function(title) {
+            const vm = this;
+            const modalElement = $('#commentModal').removeClass('layui-hidden');
+            
+            this.layerIndex = this.layer.open({
+                type: 1,
+                title: title,
+                content: modalElement,
+                area: ['600px', 'auto'],
+                btn: ['确定', '取消'],
+                success: function() {
+                    vm.$forceUpdate();
+                    setTimeout(function() {
+                        vm.form.render();
+                    }, 100);
+                },
+                yes: function() {
+                    vm.saveComment();
+                },
+                end: function() {
+                    modalElement.addClass('layui-hidden');
+                }
+            });
+        },
+        
+        saveComment: function() {
+            const vm = this;
+            const formData = vm.currentComment;
+            
+            if (!formData.attraction_name || !formData.comment_content) {
+                vm.layer.msg('景点名称和评论内容不能为空', {icon: 5});
+                return;
+            }
+            
+            const apiUrl = formData.id ? '/comments/edit' : '/comments/add';
+            
+            axios.post(apiUrl, formData)
+            .then(response => {
+                if (response.data.code === 200) {
+                    vm.layer.close(vm.layerIndex);
+                    vm.layer.msg('操作成功', {icon: 6});
+                    vm.loadCommentsList();
+                } else {
+                    vm.layer.msg('操作失败: ' + (response.data.msg || '未知错误'), {icon: 5});
+                }
+            })
+            .catch(error => {
+                console.error('保存评论错误:', error);
+                vm.layer.msg('操作失败，请稍后重试', {icon: 5});
+            });
+        },
+        
+        deleteComment: function(id) {
+            const vm = this;
+            
+            this.layer.confirm('确定要删除该评论吗？', {
+                icon: 3,
+                title: '确认删除'
+            }, function(index) {
+                axios.post(`/comments/delete/${id}`)
+                .then(response => {
+                    if (response.data.code === 200) {
+                        vm.layer.close(index);
+                        vm.layer.msg('删除成功', {icon: 6});
+                        vm.loadCommentsList();
+                    } else {
+                        vm.layer.msg('删除失败: ' + (response.data.msg || '未知错误'), {icon: 5});
+                    }
+                })
+                .catch(error => {
+                    console.error('删除评论错误:', error);
+                    vm.layer.msg('删除失败，请稍后重试', {icon: 5});
+                });
+            });
+        },
+        
+        deleteSelectedComments: function() {
+            const vm = this;
+            
+            this.layer.confirm(`确定要删除选中的 ${this.selectedIds.length} 条评论吗？`, {
+                icon: 3,
+                title: '确认批量删除'
+            }, function(index) {
+                const deletePromises = vm.selectedIds.map(id => {
+                    return axios.post(`/comments/delete/${id}`);
+                });
+                
+                Promise.all(deletePromises)
+                .then(responses => {
+                    const allSuccess = responses.every(res => res.data.code === 200);
+                    
+                    if (allSuccess) {
+                        vm.layer.close(index);
+                        vm.layer.msg('批量删除成功', {icon: 6});
+                        vm.loadCommentsList();
+                        vm.selectedIds = [];
+                    } else {
+                        vm.layer.msg('部分评论删除失败，请检查', {icon: 5});
+                    }
+                })
+                .catch(error => {
+                    console.error('批量删除评论错误:', error);
+                    vm.layer.msg('批量删除失败，请稍后重试', {icon: 5});
+                });
+            });
+        },
+        
+        viewStats: function() {
+            const vm = this;
+            
+            axios.get('/comments/stats')
+            .then(response => {
+                if (response.data.code === 200) {
+                    const stats = response.data.data;
+                    let content = `
+                        <div style="padding: 20px;">
+                            <h3>评论统计数据</h3>
+                            <p><strong>评论总数：</strong>${stats.total_count}</p>
+                            <p><strong>有图片的评论：</strong>${stats.with_images}</p>
+                            <h4 style="margin-top: 20px;">评论最多的景点（前5）：</h4>
+                            <ul>
+                    `;
+                    
+                    stats.attraction_stats.forEach(item => {
+                        content += `<li>${item[0]}: ${item[1]} 条评论</li>`;
+                    });
+                    
+                    content += `
+                            </ul>
+                            <h4 style="margin-top: 20px;">最活跃用户（前5）：</h4>
+                            <ul>
+                    `;
+                    
+                    stats.user_stats.forEach(item => {
+                        content += `<li>${item[0]}: ${item[1]} 条评论</li>`;
+                    });
+                    
+                    content += `
+                            </ul>
+                        </div>
+                    `;
+                    
+                    vm.layer.open({
+                        type: 1,
+                        title: '统计数据',
+                        content: content,
+                        area: ['500px', 'auto'],
+                        btn: ['关闭']
+                    });
+                } else {
+                    vm.layer.msg('获取统计数据失败', {icon: 5});
+                }
+            })
+            .catch(error => {
+                console.error('获取统计数据错误:', error);
+                vm.layer.msg('获取统计数据失败', {icon: 5});
+            });
+        }
+    }
+});
+</script>
+</body>
+</html>

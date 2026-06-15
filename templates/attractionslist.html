@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html class="x-admin-sm">
+<head>
+    <meta charset="UTF-8">
+    <title>景点管理 - 数据分析系统</title>
+    <meta name="renderer" content="webkit|ie-comp|ie-stand">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8,target-densitydpi=low-dpi" />
+    <meta http-equiv="Cache-Control" content="no-siteapp" />
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/font.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='fontAlibaba/iconfont.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/xadmin.css') }}">
+    <script src="{{ url_for('static',filename='lib/layui/layui.js') }}" charset="utf-8"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='js/xadmin.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='js/jquery.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <style>
+        .layui-hidden, .hidden {
+            display: none !important;
+        }
+        .attractions-list-container {
+            padding: 15px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .search-bar {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f9fafc;
+            border-radius: 5px;
+        }
+        .btn-group {
+            margin-bottom: 15px;
+        }
+        .layui-table {
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .layui-btn {
+            margin-right: 8px;
+        }
+        .attraction-modal .layui-form-item {
+            margin-bottom: 15px;
+        }
+        .attraction-modal .layui-form-label {
+            width: 120px;
+        }
+        .attraction-modal .layui-input-block {
+            margin-left: 150px;
+        }
+        .attraction-image {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .rating-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            background-color: #ff9800;
+            color: white;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body class="index">
+
+<div id="attractionsApp" class="attractions-list-container">
+    <!-- 搜索栏 -->
+    <div class="search-bar layui-form">
+        <div class="layui-form-item">
+            <div class="layui-inline">
+                <label class="layui-form-label">景点名称</label>
+                <div class="layui-input-inline" style="width: 200px;">
+                    <input type="text" v-model="searchName" placeholder="请输入景点名称" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-inline">
+                <label class="layui-form-label">城市</label>
+                <div class="layui-input-inline" style="width: 150px;">
+                    <input type="text" v-model="searchCity" placeholder="请输入城市" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-inline">
+                <button class="layui-btn layui-btn-normal" @click="searchAttractions">
+                    <i class="layui-icon">&#xe615;</i>搜索
+                </button>
+                <button class="layui-btn layui-btn-warm" @click="resetSearch">
+                    <i class="layui-icon">&#xe666;</i>重置
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 按钮组 -->
+    <div class="btn-group">
+        <button class="layui-btn layui-btn-normal" @click="showAddModal">
+            <i class="layui-icon">&#xe608;</i>添加景点
+        </button>
+        <button class="layui-btn layui-btn-danger" @click="deleteSelectedAttractions" v-if="selectedIds.length > 0">
+            <i class="layui-icon">&#xe640;</i>批量删除
+        </button>
+        <button class="layui-btn layui-btn-primary" @click="exportData">
+            <i class="layui-icon">&#xe67d;</i>导出数据
+        </button>
+    </div>
+
+    <!-- 景点列表表格 -->
+    <table class="layui-table" id="attractionsTable">
+        <thead>
+            <tr>
+                <th><input type="checkbox" lay-skin="primary" lay-filter="allChoose"></th>
+                <th>ID</th>
+                <th>排名</th>
+                <th>图片</th>
+                <th>景点名称</th>
+                <th>城市</th>
+                <th>评分</th>
+                <th>评论数</th>
+                <th>地址</th>
+                <th>门票价格</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr v-for="attraction in attractionsList" :key="attraction.id">
+                <td><input type="checkbox" name="id" :value="attraction.id" lay-skin="primary" lay-filter="choose"></td>
+                <td>[[ attraction.id ]]</td>
+                <td>[[ attraction.rank_num || '-' ]]</td>
+                <td>
+                    <img v-if="attraction.image" :src="attraction.image" class="attraction-image" :alt="attraction.name">
+                    <span v-else>-</span>
+                </td>
+                <td>[[ attraction.name ]]</td>
+                <td>[[ attraction.city || '-' ]]</td>
+                <td>
+                    <span v-if="attraction.rating" class="rating-badge">[[ attraction.rating ]]</span>
+                    <span v-else>-</span>
+                </td>
+                <td>[[ attraction.comment_count || 0 ]]</td>
+                <td>[[ attraction.address ? attraction.address.substring(0, 30) + '...' : '-' ]]</td>
+                <td>[[ attraction.ticket_price || '-' ]]</td>
+                <td>
+                    <button class="layui-btn layui-btn-xs layui-btn-normal" @click="viewDetail(attraction)">
+                        <i class="layui-icon">&#xe705;</i>详情
+                    </button>
+                    <button class="layui-btn layui-btn-xs" @click="showEditModal(attraction)">
+                        <i class="layui-icon">&#xe642;</i>编辑
+                    </button>
+                    <button class="layui-btn layui-btn-danger layui-btn-xs" @click="deleteAttraction(attraction.id)">
+                        <i class="layui-icon">&#xe640;</i>删除
+                    </button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 分页 -->
+    <div id="pager" style="margin-top: 15px;"></div>
+
+    <!-- 添加/编辑景点弹窗 -->
+    <div id="attractionModal" class="attraction-modal layui-hidden">
+        <div class="layui-form" lay-filter="attractionForm" style="padding: 20px;">
+            <input type="hidden" v-model="currentAttraction.id">
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">景点名称 *</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentAttraction.name" placeholder="请输入景点名称" class="layui-input" lay-verify="required">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">英文名称</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentAttraction.name_en" placeholder="请输入英文名称" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">城市</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentAttraction.city" placeholder="请输入城市" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">评分</label>
+                <div class="layui-input-block">
+                    <input type="number" step="0.1" v-model="currentAttraction.rating" placeholder="请输入评分" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">地址</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentAttraction.address" placeholder="请输入地址" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">门票价格</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentAttraction.ticket_price" placeholder="请输入门票价格" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">开放时间</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentAttraction.open_time" placeholder="请输入开放时间" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">联系电话</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentAttraction.phone" placeholder="请输入联系电话" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">景点描述</label>
+                <div class="layui-input-block">
+                    <textarea v-model="currentAttraction.description" placeholder="请输入景点描述" class="layui-textarea"></textarea>
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">图片URL</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentAttraction.image" placeholder="请输入图片URL" class="layui-input">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+var attractionsApp = new Vue({
+    el: '#attractionsApp',
+    delimiters: ['[[', ']]'],
+    data: {
+        attractionsList: [],
+        searchName: '',
+        searchCity: '',
+        currentPage: 1,
+        pageSize: 10,
+        totalCount: 0,
+        currentAttraction: {
+            id: '',
+            rank_num: '',
+            name: '',
+            name_en: '',
+            city: '',
+            rating: '',
+            address: '',
+            ticket_price: '',
+            open_time: '',
+            phone: '',
+            description: '',
+            image: ''
+        },
+        selectedIds: [],
+        layerIndex: null,
+        form: null,
+        laypage: null,
+        layer: null
+    },
+    mounted: function() {
+        this.initLayui();
+    },
+    methods: {
+        initLayui: function() {
+            const vm = this;
+            
+            layui.use(['form', 'laypage', 'layer'], function() {
+                vm.form = layui.form;
+                vm.laypage = layui.laypage;
+                vm.layer = layui.layer;
+                
+                vm.form.on('checkbox(allChoose)', function(data) {
+                    const child = $('tbody input[type="checkbox"]');
+                    child.each(function(index, item) {
+                        item.checked = data.elem.checked;
+                    });
+                    vm.form.render('checkbox');
+                    vm.updateSelectedIds();
+                });
+                
+                vm.form.on('checkbox(choose)', function() {
+                    vm.updateSelectedIds();
+                    const child = $('tbody input[type="checkbox"]');
+                    const checked = $('tbody input[type="checkbox"]:checked');
+                    $('thead input[type="checkbox"]').prop('checked', child.length === checked.length);
+                    vm.form.render('checkbox');
+                });
+                
+                vm.loadAttractionsList();
+            });
+        },
+        
+        updateSelectedIds: function() {
+            const vm = this;
+            vm.selectedIds = [];
+            $('tbody input[type="checkbox"]:checked').each(function() {
+                vm.selectedIds.push(parseInt($(this).val()));
+            });
+        },
+        
+        loadAttractionsList: function() {
+            const vm = this;
+            
+            axios.post('/attractions/attractionslist', {
+                name: this.searchName,
+                city: this.searchCity,
+                page: this.currentPage,
+                limit: this.pageSize
+            })
+            .then(response => {
+                if (response.data.code === 200) {
+                    vm.attractionsList = response.data.data || [];
+                    vm.totalCount = response.data.total || 0;
+                    vm.renderPagination();
+                    vm.form.render();
+                } else {
+                    vm.layer.msg('获取景点列表失败: ' + (response.data.msg || '未知错误'), {icon: 5});
+                }
+            })
+            .catch(error => {
+                console.error('获取景点列表错误:', error);
+                vm.layer.msg('获取景点列表失败，请稍后重试', {icon: 5});
+            });
+        },
+        
+        renderPagination: function() {
+            const vm = this;
+            
+            if (!vm.laypage || !vm.totalCount) return;
+            
+            setTimeout(function() {
+                vm.laypage.render({
+                    elem: 'pager',
+                    count: Number(vm.totalCount),
+                    limit: Number(vm.pageSize),
+                    curr: Number(vm.currentPage),
+                    layout: ['count', 'prev', 'page', 'next', 'limit', 'refresh', 'skip'],
+                    jump: function(obj, first) {
+                        if (!first) {
+                            vm.currentPage = obj.curr;
+                            vm.pageSize = obj.limit;
+                            vm.loadAttractionsList();
+                        }
+                    }
+                });
+            }, 0);
+        },
+        
+        searchAttractions: function() {
+            this.currentPage = 1;
+            this.loadAttractionsList();
+        },
+        
+        resetSearch: function() {
+            this.searchName = '';
+            this.searchCity = '';
+            this.currentPage = 1;
+            this.loadAttractionsList();
+        },
+        
+        showAddModal: function() {
+            this.currentAttraction = {
+                id: '',
+                rank_num: '',
+                name: '',
+                name_en: '',
+                city: '',
+                rating: '',
+                address: '',
+                ticket_price: '',
+                open_time: '',
+                phone: '',
+                description: '',
+                image: ''
+            };
+            this.openModal('添加景点');
+        },
+        
+        showEditModal: function(attraction) {
+            this.currentAttraction = JSON.parse(JSON.stringify(attraction));
+            this.openModal('编辑景点');
+        },
+        
+        viewDetail: function(attraction) {
+            const vm = this;
+            const content = `
+                <div style="padding: 20px; max-height: 500px; overflow-y: auto;">
+                    <p><strong>景点名称：</strong>${attraction.name || '-'}</p>
+                    <p><strong>英文名称：</strong>${attraction.name_en || '-'}</p>
+                    <p><strong>城市：</strong>${attraction.city || '-'}</p>
+                    <p><strong>评分：</strong>${attraction.rating || '-'}</p>
+                    <p><strong>评论数：</strong>${attraction.comment_count || 0}</p>
+                    <p><strong>地址：</strong>${attraction.address || '-'}</p>
+                    <p><strong>门票价格：</strong>${attraction.ticket_price || '-'}</p>
+                    <p><strong>开放时间：</strong>${attraction.open_time || '-'}</p>
+                    <p><strong>联系电话：</strong>${attraction.phone || '-'}</p>
+                    <p><strong>建议游玩时长：</strong>${attraction.suggested_duration || '-'}</p>
+                    <p><strong>描述：</strong>${attraction.description || '-'}</p>
+                    ${attraction.image ? `<p><strong>图片：</strong><br><img src="${attraction.image}" style="max-width: 100%; margin-top: 10px;"></p>` : ''}
+                </div>
+            `;
+            
+            vm.layer.open({
+                type: 1,
+                title: '景点详情',
+                content: content,
+                area: ['600px', 'auto'],
+                btn: ['关闭']
+            });
+        },
+        
+        openModal: function(title) {
+            const vm = this;
+            const modalElement = $('#attractionModal').removeClass('layui-hidden');
+            
+            this.layerIndex = this.layer.open({
+                type: 1,
+                title: title,
+                content: modalElement,
+                area: ['600px', 'auto'],
+                btn: ['确定', '取消'],
+                success: function() {
+                    vm.$forceUpdate();
+                    setTimeout(function() {
+                        vm.form.render();
+                    }, 100);
+                },
+                yes: function() {
+                    vm.saveAttraction();
+                },
+                end: function() {
+                    modalElement.addClass('layui-hidden');
+                }
+            });
+        },
+        
+        saveAttraction: function() {
+            const vm = this;
+            const formData = vm.currentAttraction;
+            
+            if (!formData.name) {
+                vm.layer.msg('景点名称不能为空', {icon: 5});
+                return;
+            }
+            
+            const apiUrl = formData.id ? '/attractions/edit' : '/attractions/add';
+            
+            axios.post(apiUrl, formData)
+            .then(response => {
+                if (response.data.code === 200) {
+                    vm.layer.close(vm.layerIndex);
+                    vm.layer.msg('操作成功', {icon: 6});
+                    vm.loadAttractionsList();
+                } else {
+                    vm.layer.msg('操作失败: ' + (response.data.msg || '未知错误'), {icon: 5});
+                }
+            })
+            .catch(error => {
+                console.error('保存景点错误:', error);
+                vm.layer.msg('操作失败，请稍后重试', {icon: 5});
+            });
+        },
+        
+        deleteAttraction: function(id) {
+            const vm = this;
+            
+            this.layer.confirm('确定要删除该景点吗？', {
+                icon: 3,
+                title: '确认删除'
+            }, function(index) {
+                axios.post(`/attractions/delete/${id}`)
+                .then(response => {
+                    if (response.data.code === 200) {
+                        vm.layer.close(index);
+                        vm.layer.msg('删除成功', {icon: 6});
+                        vm.loadAttractionsList();
+                    } else {
+                        vm.layer.msg('删除失败: ' + (response.data.msg || '未知错误'), {icon: 5});
+                    }
+                })
+                .catch(error => {
+                    console.error('删除景点错误:', error);
+                    vm.layer.msg('删除失败，请稍后重试', {icon: 5});
+                });
+            });
+        },
+        
+        deleteSelectedAttractions: function() {
+            const vm = this;
+            
+            this.layer.confirm(`确定要删除选中的 ${this.selectedIds.length} 个景点吗？`, {
+                icon: 3,
+                title: '确认批量删除'
+            }, function(index) {
+                const deletePromises = vm.selectedIds.map(id => {
+                    return axios.post(`/attractions/delete/${id}`);
+                });
+                
+                Promise.all(deletePromises)
+                .then(responses => {
+                    const allSuccess = responses.every(res => res.data.code === 200);
+                    
+                    if (allSuccess) {
+                        vm.layer.close(index);
+                        vm.layer.msg('批量删除成功', {icon: 6});
+                        vm.loadAttractionsList();
+                        vm.selectedIds = [];
+                    } else {
+                        vm.layer.msg('部分景点删除失败，请检查', {icon: 5});
+                    }
+                })
+                .catch(error => {
+                    console.error('批量删除景点错误:', error);
+                    vm.layer.msg('批量删除失败，请稍后重试', {icon: 5});
+                });
+            });
+        },
+        
+        exportData: function() {
+            this.layer.msg('导出功能开发中...', {icon: 6});
+        }
+    }
+});
+</script>
+</body>
+</html>

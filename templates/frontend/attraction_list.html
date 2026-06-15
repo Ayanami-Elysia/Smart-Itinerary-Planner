@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>景点推荐 - 景点推荐平台</title>
+    <link rel="stylesheet" href="{{ url_for('static',filename='lib/layui/css/layui.css') }}">
+    <script src="{{ url_for('static',filename='lib/layui/layui.js') }}"></script>
+    <script src="{{ url_for('static',filename='js/jquery.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4eaf0 100%);
+            min-height: 100vh;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, #5c6bc0 0%, #7986cb 100%);
+            color: white;
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(92, 107, 192, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .navbar h1 {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        .navbar .nav-links a {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+        }
+        
+        .navbar .nav-links a:hover {
+            opacity: 1;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        
+        .search-section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .attractions-section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .section-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .sort-options {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .attractions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        
+        .attraction-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .attraction-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        }
+        
+        .attraction-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #e0e0e0;
+        }
+        
+        .attraction-info {
+            padding: 15px;
+        }
+        
+        .attraction-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .attraction-location {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .attraction-rating {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .rating-score {
+            font-size: 18px;
+            font-weight: 700;
+            color: #ff9800;
+        }
+        
+        .rating-text {
+            font-size: 14px;
+            color: #999;
+        }
+        
+        .attraction-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #e3f2fd;
+            color: #5c6bc0;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .attraction-stars {
+            color: #ffd700;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+            padding: 20px 0;
+        }
+        
+        /* 分页样式优化 */
+        #pagination {
+            width: 100%;
+            text-align: center;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .empty-state p {
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <div class="navbar">
+        <h1>旅游路径推荐平台</h1>
+        <div class="nav-links">
+               <a href="/frontend/attraction_home">首页</a>
+            <a href="/frontend/attraction_list">景点推荐</a>
+            <a href="/frontend/path_recommendation">路径推荐</a>
+            <a href="/frontend/profile">个人中心</a>
+            <a href="http://127.0.0.1:5000/">退出</a>
+        </div>
+    </div>
+
+    <div id="app" class="container">
+        <!-- 搜索区域 -->
+        <div class="search-section">
+            <div class="search-form">
+                <input type="text" 
+                       v-model="searchForm.attraction_name" 
+                       placeholder="搜索景点名称" 
+                       class="layui-input search-input">
+                <input type="text" 
+                       v-model="searchForm.city_name" 
+                       placeholder="搜索区域" 
+                       class="layui-input search-input">
+                <button class="layui-btn layui-btn-normal" @click="searchattractions">
+                    <i class="layui-icon layui-icon-search"></i> 搜索
+                </button>
+                <button class="layui-btn layui-btn-primary" @click="resetSearch">
+                    <i class="layui-icon layui-icon-refresh"></i> 重置
+                </button>
+            </div>
+        </div>
+
+        <!-- 景点列表 -->
+        <div class="attractions-section">
+            <div class="section-header">
+                <div class="section-title">
+                    <i class="layui-icon layui-icon-location"></i>
+                    景点列表 (共 [[ total ]] 个)
+                </div>
+                <div class="sort-options">
+                    <button class="layui-btn layui-btn-xs" 
+                            :class="sortType === 'score' ? 'layui-btn-normal' : ''"
+                            @click="sortByScore">
+                        按评分排序
+                    </button>
+                    <button class="layui-btn layui-btn-xs" 
+                            :class="sortType === 'comments' ? 'layui-btn-normal' : ''"
+                            @click="sortByComments">
+                        按评论数排序
+                    </button>
+                </div>
+            </div>
+            
+            <div v-if="attractions.length > 0" class="attractions-grid">
+                <div v-for="attraction in attractions" :key="attraction.id" 
+                     class="attraction-card" @click="goToDetail(attraction.id)">
+                    <img :src="attraction.image_url || '/static/images/default-attraction.jpg'" 
+                         :alt="attraction.attraction_name" 
+                         class="attraction-image"
+                         @error="handleImageError">
+                    <div class="attraction-info">
+                        <div class="attraction-name">[[ attraction.attraction_name ]]</div>
+                        <div class="attraction-location">
+                            <i class="layui-icon layui-icon-location"></i>
+                            [[ attraction.zone_name || '' ]]
+                        </div>
+                        <div class="attraction-stars" v-if="attraction.star">
+                            <span v-for="n in parseInt(attraction.star)" :key="n">★</span>
+                        </div>
+                        <div class="attraction-rating">
+                            <span class="rating-score">[[ attraction.comment_score ]]</span>
+                            <span class="rating-text">([[ attraction.comment_count ]]条评论)</span>
+                        </div>
+                        <div v-if="attraction.one_sentence_tag">
+                            <span class="attraction-tag">[[ attraction.one_sentence_tag ]]</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div v-else class="empty-state">
+                <i class="layui-icon layui-icon-face-cry"></i>
+                <p>暂无符合条件的景点</p>
+            </div>
+            
+            <!-- 分页 -->
+            <div v-if="total > pageSize" class="pagination">
+                <div id="pagination"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    var app = new Vue({
+        el: '#app',
+        delimiters: ['[[', ']]'],
+        data: {
+            attractions: [],
+            total: 0,
+            currentPage: 1,
+            pageSize: 12,
+            searchForm: {
+                attraction_name: '',
+                city_name: ''
+            },
+            sortType: ''
+        },
+        mounted: function() {
+            this.loadattractions();
+            this.initPagination();
+        },
+        methods: {
+            loadattractions: function() {
+                const vm = this;
+                axios.post('/attraction/attractionlist', {
+                    attraction_name: vm.searchForm.attraction_name || null,
+                    city_name: vm.searchForm.city_name || null,
+                    page: vm.currentPage,
+                    limit: vm.pageSize
+                })
+                .then(response => {
+                    if (response.data.code === 200) {
+                        let attractions = response.data.data || [];
+                        vm.total = response.data.total || 0;
+                        
+                        // 排序
+                        if (vm.sortType === 'score') {
+                            attractions = attractions.sort((a, b) => (b.comment_score || 0) - (a.comment_score || 0));
+                        } else if (vm.sortType === 'comments') {
+                            attractions = attractions.sort((a, b) => (b.comment_count || 0) - (a.comment_count || 0));
+                        }
+                        
+                        vm.attractions = attractions;
+                        
+                        // 延迟更新分页，确保DOM已渲染
+                        vm.$nextTick(function() {
+                            vm.updatePagination();
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('获取景点列表失败:', error);
+                    layui.use('layer', function() {
+                        var layer = layui.layer;
+                        layer.msg('加载失败，请稍后重试', {icon: 2});
+                    });
+                });
+            },
+            searchattractions: function() {
+                this.currentPage = 1;
+                this.loadattractions();
+            },
+            resetSearch: function() {
+                this.searchForm = {
+                    attraction_name: '',
+                    city_name: ''
+                };
+                this.sortType = '';
+                this.currentPage = 1;
+                this.loadattractions();
+            },
+            sortByScore: function() {
+                this.sortType = this.sortType === 'score' ? '' : 'score';
+                this.loadattractions();
+            },
+            sortByComments: function() {
+                this.sortType = this.sortType === 'comments' ? '' : 'comments';
+                this.loadattractions();
+            },
+            goToDetail: function(attractionId) {
+                window.location.href = `/frontend/attraction_detail?id=${attractionId}`;
+            },
+            handleImageError: function(event) {
+                event.target.src = '/static/images/default-attraction.jpg';
+            },
+            initPagination: function() {
+                const vm = this;
+                layui.use('laypage', function() {
+                    var laypage = layui.laypage;
+                    vm.updatePagination();
+                });
+            },
+            updatePagination: function() {
+                const vm = this;
+                if (vm.total <= vm.pageSize) {
+                    return; // 如果总数小于等于每页数量，不显示分页
+                }
+                layui.use('laypage', function() {
+                    var laypage = layui.laypage;
+                    laypage.render({
+                        elem: 'pagination',
+                        count: vm.total,
+                        limit: vm.pageSize,
+                        curr: vm.currentPage,
+                        layout: ['count', 'prev', 'page', 'next', 'limit', 'skip'],
+                        jump: function(obj, first) {
+                            if (!first) {
+                                vm.currentPage = obj.curr;
+                                vm.pageSize = obj.limit;
+                                vm.loadattractions();
+                            }
+                        }
+                    });
+                });
+            }
+        }
+    });
+    </script>
+</body>
+</html>
+

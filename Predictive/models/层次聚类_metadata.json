@@ -1,0 +1,21 @@
+{
+  "n_clusters": 5,
+  "data_size": 200,
+  "features": [
+    "rating",
+    "comment_count",
+    "visitor_percentage",
+    "综合评分",
+    "热度指数",
+    "avg_comment_rating"
+  ],
+  "metrics": {
+    "轮廓系数": 0.6013060584988855,
+    "Davies-Bouldin指数": 0.47879800679753926,
+    "Calinski-Harabasz指数": 169.59035421004663,
+    "聚类数量": 5,
+    "噪声点数量": 0
+  },
+  "model_name": "层次聚类",
+  "save_time": "2026-01-30 18:10:01"
+}

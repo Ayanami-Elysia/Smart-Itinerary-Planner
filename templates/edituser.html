@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html class="x-admin-sm">
+<head>
+    <meta charset="UTF-8">
+    <title>编辑用户 - 数据分析系统</title>
+    <meta name="renderer" content="webkit|ie-comp|ie-stand">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8,target-densitydpi=low-dpi" />
+    <meta http-equiv="Cache-Control" content="no-siteapp" />
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/font.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='fontAlibaba/iconfont.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/xadmin.css') }}">
+    <script src="{{ url_for('static',filename='lib/layui/layui.js') }}" charset="utf-8"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='js/xadmin.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='js/jquery.min.js') }}"></script>
+    <!-- 引入Vue.js -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <!-- 引入axios用于HTTP请求 -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <style>
+        /* 自定义样式 */
+        .layui-hidden, .hidden {
+            display: none !important;
+        }
+        .user-edit-container {
+            padding: 15px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: 20px auto;
+        }
+        .user-form .layui-form-item {
+            margin-bottom: 15px;
+        }
+        .user-form .layui-form-label {
+            width: 100px;
+        }
+        .user-form .layui-input-block {
+            margin-left: 130px;
+        }
+        .btn-group {
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="index">
+
+<div id="userEditApp" class="user-edit-container">
+    <div class="layui-form user-form" lay-filter="userForm">
+        <input type="hidden" v-model="user.id">
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">用户名 *</label>
+            <div class="layui-input-block">
+                <input type="text" v-model="user.username" placeholder="请输入用户名" class="layui-input" lay-verify="required">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">密码</label>
+            <div class="layui-input-block">
+                <input type="password" v-model="user.password" placeholder="请输入密码（不修改请留空）" class="layui-input">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">昵称</label>
+            <div class="layui-input-block">
+                <input type="text" v-model="user.nickname" placeholder="请输入昵称" class="layui-input">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">性别</label>
+            <div class="layui-input-block">
+                <input type="radio" name="sex" value="1" v-model="user.sex" title="男">
+                <input type="radio" name="sex" value="2" v-model="user.sex" title="女">
+                <input type="radio" name="sex" value="0" v-model="user.sex" title="保密">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">年龄</label>
+            <div class="layui-input-block">
+                <input type="number" v-model="user.age" placeholder="请输入年龄" class="layui-input">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">手机号</label>
+            <div class="layui-input-block">
+                <input type="tel" v-model="user.phone" placeholder="请输入手机号" class="layui-input">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">邮箱</label>
+            <div class="layui-input-block">
+                <input type="email" v-model="user.email" placeholder="请输入邮箱" class="layui-input">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">生日</label>
+            <div class="layui-input-block">
+                <input type="date" v-model="user.birthday" placeholder="请选择生日" class="layui-input">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">身份证</label>
+            <div class="layui-input-block">
+                <input type="text" v-model="user.card" placeholder="请输入身份证号" class="layui-input">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">内容</label>
+            <div class="layui-input-block">
+                <input type="text" v-model="user.content" placeholder="请输入内容" class="layui-input">
+            </div>
+        </div>
+        
+        <div class="layui-form-item">
+            <label class="layui-form-label">备注</label>
+            <div class="layui-input-block">
+                <input type="text" v-model="user.remarks" placeholder="请输入备注" class="layui-input">
+            </div>
+        </div>
+        
+        <div class="btn-group">
+            <button class="layui-btn layui-btn-normal" @click="saveUser">
+                <i class="layui-icon">&#xe605;</i>保存
+            </button>
+            <button class="layui-btn layui-btn-primary" @click="cancelEdit">
+                <i class="layui-icon">&#xe600;</i>取消
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 创建Vue实例
+    var userEditApp = new Vue({
+        el: '#userEditApp',
+        delimiters: ['[[', ']]'], // 修改Vue的插值语法分隔符，避免与Jinja2冲突
+        data: {
+            user: {
+                id: '',
+                username: '',
+                password: '',
+                nickname: '',
+                sex: '',
+                age: '',
+                phone: '',
+                email: '',
+                birthday: '',
+                card: '',
+                content: '',
+                remarks: '',
+                role: ''
+            },
+            form: null,
+            layer: null
+        },
+        mounted: function() {
+            // 初始化layui组件
+            this.initLayui();
+            // 初始化用户数据
+            this.initUserData();
+        },
+        methods: {
+            // 初始化layui组件
+            initLayui: function() {
+                const vm = this;
+                
+                layui.use(['form', 'layer'], function() {
+                    vm.form = layui.form;
+                    vm.layer = layui.layer;
+                    
+                    // 重新渲染表单，让layui识别Vue绑定的值
+                    setTimeout(function() {
+                        vm.form.render();
+                    }, 100);
+                });
+            },
+            
+            // 初始化用户数据
+            initUserData: function() {
+                const vm = this;
+                
+                // 从Jinja2模板中获取用户数据
+                const userData = [[ user | tojson ]] || {};
+                
+                if (userData) {
+                    // 深拷贝用户对象，避免直接修改原数据
+                    vm.user = JSON.parse(JSON.stringify(userData));
+                    
+                    // 处理数据类型，确保表单能正确显示
+                    // 转换性别为字符串，处理null/undefined情况
+                    if (vm.user.sex === undefined || vm.user.sex === null) {
+                        vm.user.sex = ''; // 设置为空字符串作为默认值
+                    } else {
+                        vm.user.sex = vm.user.sex.toString();
+                    }
+                    
+                    // 确保age是数字类型
+                    if (vm.user.age !== undefined && vm.user.age !== null && vm.user.age !== '') {
+                        vm.user.age = parseInt(vm.user.age);
+                    }
+                    
+                    // 强制Vue更新DOM
+                    if (vm.$forceUpdate) {
+                        vm.$forceUpdate();
+                    }
+                    
+                    // 延迟设置表单值，确保Vue已经更新了DOM
+                    // 确保在DOM更新后执行
+                    setTimeout(function() {
+                        // 手动为radio设置值
+                        if (vm.user.sex !== undefined && vm.user.sex !== null && vm.user.sex !== '') {
+                            $(`input[name="sex"][value="${vm.user.sex}"]`).prop('checked', true);
+                        }
+                        
+                        // 重新渲染表单，让layui识别Vue更新后的值
+                        vm.form.render();
+                        
+                        // 移除之前的监听器，防止重复绑定
+                        vm.form.off('radio(sex)');
+                        
+                        // 添加radio变更监听，确保选择能正确更新Vue数据
+                        vm.form.on('radio(sex)', function(data) {
+                            vm.user.sex = data.value;
+                            console.log('性别已更新为:', data.value); // 添加调试日志
+                        });
+                    }, 150);
+                }
+            },
+            
+            // 保存用户修改
+            saveUser: function() {
+                const vm = this;
+                
+                // 表单验证
+                if (!vm.user.username) {
+                    vm.layer.msg('用户名不能为空', {icon: 5});
+                    return;
+                }
+                
+                // 显式获取radio选中值，确保能正确获取
+                const selectedSex = $("input[name='sex']:checked").val();
+                if (selectedSex) {
+                    vm.user.sex = selectedSex;
+                }
+                
+                // 构建请求数据，包含所有用户字段
+                const requestData = {
+                    id: vm.user.id,
+                    username: vm.user.username,
+                    nickname: vm.user.nickname,
+                    sex: vm.user.sex || '', // 确保sex字段始终存在
+                    age: vm.user.age,
+                    phone: vm.user.phone,
+                    email: vm.user.email,
+                    birthday: vm.user.birthday,
+                    card: vm.user.card,
+                    content: vm.user.content,
+                    remarks: vm.user.remarks
+                };
+                
+                // 如果有密码，则包含密码
+                if (vm.user.password) {
+                    requestData.password = vm.user.password;
+                }
+                
+                // 发送请求
+                axios.post('/user/edit', requestData)
+                .then(response => {
+                    if (response.data.code === 200) {
+                        vm.layer.msg('更新成功', {icon: 6});
+                        // 延迟跳转，让用户看到成功提示
+                        setTimeout(function() {
+                            window.location.href = '/userlist.html'; // 假设返回用户列表页
+                        }, 1500);
+                    } else {
+                        vm.layer.msg('更新失败: ' + (response.data.message || '未知错误'), {icon: 5});
+                    }
+                })
+                .catch(error => {
+                    console.error('更新用户错误:', error);
+                    vm.layer.msg('更新失败，请稍后重试', {icon: 5});
+                });
+            },
+            
+            // 取消编辑
+            cancelEdit: function() {
+                const vm = this;
+                
+                vm.layer.confirm('确定要取消编辑吗？未保存的更改将丢失。', {
+                    icon: 3,
+                    title: '确认取消'
+                }, function(index) {
+                    vm.layer.close(index);
+                    window.history.back();
+                });
+            }
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html class="x-admin-sm">
+<head>
+    <meta charset="UTF-8">
+    <title>用户管理 - 数据分析系统</title>
+    <meta name="renderer" content="webkit|ie-comp|ie-stand">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8,target-densitydpi=low-dpi" />
+    <meta http-equiv="Cache-Control" content="no-siteapp" />
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/font.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='fontAlibaba/iconfont.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/xadmin.css') }}">
+    <script src="{{ url_for('static',filename='lib/layui/layui.js') }}" charset="utf-8"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='js/xadmin.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='js/jquery.min.js') }}"></script>
+    <!-- 引入Vue.js -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <!-- 引入axios用于HTTP请求 -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <style>
+        /* 自定义样式 */
+        .layui-hidden, .hidden {
+            display: none !important;
+        }
+        .user-list-container {
+            padding: 15px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .search-bar {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f9fafc;
+            border-radius: 5px;
+        }
+        .btn-group {
+            margin-bottom: 15px;
+        }
+        .layui-table {
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .layui-btn {
+            margin-right: 8px;
+        }
+        .user-modal .layui-form-item {
+            margin-bottom: 15px;
+        }
+        .user-modal .layui-form-label {
+            width: 100px;
+        }
+        .user-modal .layui-input-block {
+            margin-left: 130px;
+        }
+    </style>
+</head>
+<body class="index">
+
+<div id="userApp" class="user-list-container">
+    <!-- 搜索栏 -->
+    <div class="search-bar layui-form">
+        <div class="layui-form-item">
+            <div class="layui-inline">
+                <label class="layui-form-label">用户名</label>
+                <div class="layui-input-inline" style="width: 200px;">
+                    <input type="text" v-model="searchUsername" placeholder="请输入用户名" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-inline">
+                <button class="layui-btn layui-btn-normal" @click="searchUsers">
+                    <i class="layui-icon">&#xe615;</i>搜索
+                </button>
+                <button class="layui-btn layui-btn-warm" @click="resetSearch">
+                    <i class="layui-icon">&#xe666;</i>重置
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 按钮组 -->
+    <div class="btn-group">
+        <button class="layui-btn layui-btn-normal" @click="showAddModal">
+            <i class="layui-icon">&#xe608;</i>添加用户
+        </button>
+        <button class="layui-btn layui-btn-danger" @click="deleteSelectedUsers" v-if="selectedIds.length > 0">
+            <i class="layui-icon">&#xe640;</i>批量删除
+        </button>
+    </div>
+
+    <!-- 用户列表表格 -->
+    <table class="layui-table" id="userTable">
+        <thead>
+            <tr>
+                <th><input type="checkbox" lay-skin="primary" lay-filter="allChoose"></th>
+                <th>ID</th>
+                <th>用户名</th>
+                <th>昵称</th>
+                <th>性别</th>
+                <th>年龄</th>
+                <th>手机号</th>
+                <th>邮箱</th>
+                <th>生日</th>
+                <th>身份证</th>
+                <th>角色</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr v-for="user in userList" :key="user.id">
+                <td><input type="checkbox" name="id" :value="user.id" lay-skin="primary" lay-filter="choose"></td>
+                <td>[[ user.id ]]</td>
+                <td>[[ user.username ]]</td>
+                <td>[[ user.nickname ]]</td>
+                <td>[[ convertGenderToChinese(user.sex) ]]</td>
+                <td>[[ user.age || '-' ]]</td>
+                <td>[[ user.phone || '-' ]]</td>
+                <td>[[ user.email || '-' ]]</td>
+                <td>[[ user.birthday || '-' ]]</td>
+                <td>[[ user.card || '-' ]]</td>
+                <td>[[ user.role ]]</td>
+                <td>
+                    <button class="layui-btn layui-btn-xs" @click="showEditModal(user)">
+                        <i class="layui-icon">&#xe642;</i>编辑
+                    </button>
+                    <button class="layui-btn layui-btn-danger layui-btn-xs" @click="deleteUser(user.id)">
+                        <i class="layui-icon">&#xe640;</i>删除
+                    </button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 分页 -->
+    <div id="pager" style="margin-top: 15px;"></div>
+
+    <!-- 添加/编辑用户弹窗 -->
+    <div id="userModal" class="user-modal layui-hidden">
+        <div class="layui-form" lay-filter="userForm">
+            <input type="hidden" v-model="currentUser.id">
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">用户名 *</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentUser.username" placeholder="请输入用户名" class="layui-input" lay-verify="required">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">密码</label>
+                <div class="layui-input-block">
+                    <input type="password" v-model="currentUser.password" placeholder="请输入密码（不修改请留空）" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">昵称</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentUser.nickname" placeholder="请输入昵称" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">性别</label>
+                <div class="layui-input-block">
+                    <input type="radio" name="sex" value="1" v-model="currentUser.sex" title="男">
+                    <input type="radio" name="sex" value="2" v-model="currentUser.sex" title="女">
+                    <input type="radio" name="sex" value="0" v-model="currentUser.sex" title="保密">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">年龄</label>
+                <div class="layui-input-block">
+                    <input type="number" v-model="currentUser.age" placeholder="请输入年龄" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">手机号</label>
+                <div class="layui-input-block">
+                    <input type="tel" v-model="currentUser.phone" placeholder="请输入手机号" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">邮箱</label>
+                <div class="layui-input-block">
+                    <input type="email" v-model="currentUser.email" placeholder="请输入邮箱" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">生日</label>
+                <div class="layui-input-block">
+                    <input type="date" v-model="currentUser.birthday" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">身份证号</label>
+                <div class="layui-input-block">
+                    <input type="text" v-model="currentUser.card" placeholder="请输入身份证号" class="layui-input">
+                </div>
+            </div>
+            
+            <div class="layui-form-item">
+                <label class="layui-form-label">角色</label>
+                <div class="layui-input-block">
+                    <select v-model="currentUser.role" lay-filter="role" lay-verify="required">
+                        <option value="user">用户</option>
+                        <option value="admin">管理员</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 创建Vue实例
+    var userApp = new Vue({
+        el: '#userApp',
+        delimiters: ['[[', ']]'], // 修改Vue的插值语法分隔符，避免与Jinja2冲突
+        data: {
+            userList: [], // 用户列表数据
+            searchUsername: '', // 搜索用户名
+            currentPage: 1, // 当前页码
+            pageSize: 10, // 每页显示条数
+            totalCount: 0, // 总记录数
+            currentUser: {
+                id: '',
+                username: '',
+                password: '',
+                nickname: '',
+                sex: '',
+                age: '',
+                phone: '',
+                email: '',
+                birthday: '',
+                card: '',
+                content: '',
+                remarks: '',
+                role: '用户'
+            }, // 当前编辑的用户
+            selectedIds: [], // 选中的用户ID列表
+            layerIndex: null, // 弹窗索引
+            table: null, // layui表格对象
+            form: null, // layui表单对象
+            laypage: null, // layui分页对象
+            layer: null // layui弹窗对象
+        },
+        mounted: function() {
+            // 初始化layui组件
+            this.initLayui();
+        },
+        methods: {
+                // 将性别代码转换为中文
+                convertGenderToChinese: function(sexCode) {
+                    if (!sexCode && sexCode !== 0) return '-';
+                    const genderMap = {
+                        '0': '保密',
+                        '1': '男',
+                        '2': '女'
+                    };
+                    return genderMap[sexCode.toString()] || '-';
+                },
+                // 初始化layui组件
+                initLayui: function() {
+                    const vm = this;
+                    
+                    try {
+                        layui.use(['form', 'laypage', 'layer'], function() {
+                            // 使用Vue.set确保响应性
+                            if (typeof Vue !== 'undefined' && Vue.set) {
+                                Vue.set(vm, 'form', layui.form);
+                                Vue.set(vm, 'laypage', layui.laypage);
+                                Vue.set(vm, 'layer', layui.layer);
+                            } else {
+                                vm.form = layui.form;
+                                vm.laypage = layui.laypage;
+                                vm.layer = layui.layer;
+                            }
+                            
+                            // 监听全选
+                            vm.form.on('checkbox(allChoose)', function(data) {
+                                const child = $('tbody input[type="checkbox"]');
+                                child.each(function(index, item) {
+                                    item.checked = data.elem.checked;
+                                });
+                                vm.form.render('checkbox');
+                                vm.updateSelectedIds();
+                            });
+                            
+                            // 监听单选
+                            vm.form.on('checkbox(choose)', function() {
+                                vm.updateSelectedIds();
+                                // 检查是否全部选中
+                                const child = $('tbody input[type="checkbox"]');
+                                const checked = $('tbody input[type="checkbox"]:checked');
+                                $('thead input#allChoose').prop('checked', child.length === checked.length);
+                                vm.form.render('checkbox');
+                            });
+                            
+                            // 加载用户数据
+                            vm.loadUserList();
+                            
+                            // 初始化完成提示
+                            console.log('Layui组件初始化完成');
+                        });
+                    } catch (error) {
+                        console.error('Layui组件初始化错误:', error);
+                    }
+            },
+            
+            // 更新选中的用户ID列表
+            updateSelectedIds: function() {
+                const vm = this;
+                vm.selectedIds = [];
+                $('tbody input[type="checkbox"]:checked').each(function() {
+                    const id = parseInt($(this).val());
+                    vm.selectedIds.push(id);
+                });
+            },
+            
+            // 加载用户列表
+            loadUserList: function() {
+                const vm = this;
+                
+                // 发送请求获取用户列表
+                axios.post('/user/userlist', {
+                    username: this.searchUsername,
+                    page: this.currentPage,
+                    limit: this.pageSize
+                })
+                .then(response => {
+                    if (response.data.code === 200) {
+                        vm.userList = response.data.data || [];
+                        // 从后端返回的数据中获取总记录数
+                        vm.totalCount = response.data.total || vm.userList.length;
+                        
+                        // 渲染分页
+                        vm.renderPagination();
+                        
+                        // 重新渲染表单
+                        vm.form.render();
+                    } else {
+                        vm.layer.msg('获取用户列表失败: ' + (response.data.msg || '未知错误'), {icon: 5});
+                    }
+                })
+                .catch(error => {
+                    console.error('获取用户列表错误:', error);
+                    vm.layer.msg('获取用户列表失败，请稍后重试', {icon: 5});
+                });
+            },
+            
+            // 渲染分页
+            renderPagination: function() {
+                const vm = this;
+                
+                try {
+                    // 检查分页容器是否存在
+                    const paginationElem = document.getElementById('pager');
+                    if (!paginationElem) {
+                        console.warn('分页容器不存在');
+                        return;
+                    }
+                    
+                    // 确保totalCount是有效的数字
+                    if (!vm.totalCount || isNaN(Number(vm.totalCount))) {
+                        vm.totalCount = 0;
+                    }
+                    
+                    // 确保pageSize和currentPage是有效的数字
+                    if (!vm.pageSize || isNaN(Number(vm.pageSize)) || vm.pageSize <= 0) {
+                        vm.pageSize = 10;
+                    }
+                    if (!vm.currentPage || isNaN(Number(vm.currentPage)) || vm.currentPage <= 0) {
+                        vm.currentPage = 1;
+                    }
+                    
+                    // 检查laypage对象是否可用
+                    if (!vm.laypage) {
+                        // 尝试重新初始化laypage
+                        layui.use('laypage', function() {
+                            vm.laypage = layui.laypage;
+                            vm.renderPagination();
+                        });
+                        return;
+                    }
+                    
+                    // 使用setTimeout延迟渲染，确保DOM已更新
+                    setTimeout(function() {
+                        vm.laypage.render({
+                            elem: 'pager',
+                            count: Number(vm.totalCount),
+                            limit: Number(vm.pageSize),
+                            curr: Number(vm.currentPage),
+                            layout: ['count', 'prev', 'page', 'next', 'limit', 'refresh', 'skip'],
+                            jump: function(obj, first) {
+                                if (!first) {
+                                    // 使用Vue.set确保响应性
+                                    Vue.set(vm, 'currentPage', obj.curr);
+                                    Vue.set(vm, 'pageSize', obj.limit);
+                                    vm.loadUserList();
+                                }
+                            }
+                        });
+                    }, 0);
+                } catch (error) {
+                    console.error('分页渲染错误:', error);
+                    if (vm.layer) {
+                        vm.layer.msg('分页渲染失败，请刷新页面重试', {icon: 5});
+                    }
+                }
+            },
+            
+            // 搜索用户
+            searchUsers: function() {
+                this.currentPage = 1;
+                this.loadUserList();
+            },
+            
+            // 重置搜索
+            resetSearch: function() {
+                this.searchUsername = '';
+                this.currentPage = 1;
+                this.loadUserList();
+            },
+            
+            // 显示添加用户弹窗
+            showAddModal: function() {
+                this.currentUser = {
+                    id: '',
+                    username: '',
+                    password: '',
+                    nickname: '',
+                    sex: '',
+                    age: '',
+                    phone: '',
+                    email: '',
+                    birthday: '',
+                    card: '',
+                    content: '',
+                    remarks: '',
+                    role: '用户'
+                };
+                this.openModal('添加用户');
+            },
+            
+            // 显示编辑用户弹窗
+            showEditModal: function(user) {
+                // 深拷贝用户对象，避免直接修改原数据
+                this.currentUser = JSON.parse(JSON.stringify(user));
+                
+                // 处理所有需要修改的字段，确保数据类型正确
+                // 转换性别为字符串，如果为null或undefined则设置为空字符串
+                if (this.currentUser.sex === undefined || this.currentUser.sex === null) {
+                    this.currentUser.sex = '';
+                } else {
+                    this.currentUser.sex = this.currentUser.sex.toString();
+                }
+                
+                // 确保生日字段是字符串类型
+                if (this.currentUser.birthday === undefined || this.currentUser.birthday === null) {
+                    this.currentUser.birthday = '';
+                } else {
+                    // 格式化日期，去除可能的时间部分
+                    let dateStr = this.currentUser.birthday.toString();
+                    if (dateStr.includes(' ')) {
+                        dateStr = dateStr.split(' ')[0];
+                    }
+                    this.currentUser.birthday = dateStr;
+                }
+                
+                // 确保身份证字段是字符串类型
+                if (this.currentUser.card === undefined || this.currentUser.card === null) {
+                    this.currentUser.card = '';
+                } else {
+                    this.currentUser.card = this.currentUser.card.toString();
+                }
+                
+                // 确保角色字段正确，如果为null或undefined则设置为'user'
+                if (this.currentUser.role === undefined || this.currentUser.role === null) {
+                    this.currentUser.role = 'user';
+                } else {
+                    // 如果角色是中文'管理员'，转换为英文'admin'
+                    if (this.currentUser.role === '管理员') {
+                        this.currentUser.role = 'admin';
+                    }
+                }
+                
+                this.openModal('编辑用户');
+            },
+            
+            // 打开弹窗
+            openModal: function(title) {
+                const vm = this;
+                
+                // 确保currentUser对象有合理的默认值
+                if (!vm.currentUser || typeof vm.currentUser !== 'object') {
+                    vm.currentUser = {
+                        id: '',
+                        username: '',
+                        password: '',
+                        nickname: '',
+                        sex: '',
+                        age: '',
+                        phone: '',
+                        email: '',
+                        birthday: '',
+                        card: '',
+                        content: '',
+                        remarks: '',
+                        role: 'user'
+                    };
+                }
+                
+                // 使用原始元素而不是克隆，确保Vue数据绑定能正确工作
+                const userModalElement = $('#userModal').removeClass('layui-hidden');
+                
+                this.layerIndex = this.layer.open({
+                    type: 1,
+                    title: title,
+                    content: userModalElement,
+                    area: ['500px', 'auto'],
+                    btn: ['确定', '取消'],
+                    success: function(layero) {
+                        // 强制Vue更新DOM
+                        if (vm.$forceUpdate) {
+                            vm.$forceUpdate();
+                        }
+                        
+                        // 延迟渲染表单，确保Vue已经更新了DOM
+                        setTimeout(function() {
+                            // 手动为radio和select设置值
+                            // 处理性别单选按钮
+                            if (vm.currentUser.sex !== undefined && vm.currentUser.sex !== null && vm.currentUser.sex !== '') {
+                                $(`input[name="sex"][value="${vm.currentUser.sex}"]`).prop('checked', true);
+                            } else {
+                                // 如果没有性别值，默认不选中任何选项
+                                $(`input[name="sex"]`).prop('checked', false);
+                            }
+                            
+                            // 处理角色选择下拉框
+                            if (vm.currentUser.role !== undefined && vm.currentUser.role !== null && vm.currentUser.role !== '') {
+                                $(`select[name="role"]`).val(vm.currentUser.role);
+                            } else {
+                                $(`select[name="role"]`).val('user');
+                            }
+                            
+                            // 重新渲染表单，让layui识别Vue更新后的值
+                            vm.form.render();
+                            
+                            // 添加radio变更监听，确保选择能正确更新Vue数据
+                            vm.form.on('radio(sex)', function(data) {
+                                vm.currentUser.sex = data.value;
+                            });
+                        }, 150);
+                    },
+                    yes: function() {
+                        vm.saveUser();
+                    },
+                    end: function() {
+                        // 隐藏原始弹窗元素，而不是清空数据
+                        userModalElement.addClass('layui-hidden');
+                    }
+                });
+            },
+            
+            // 保存用户（添加或编辑）
+            saveUser: function() {
+                const vm = this;
+                
+                // 表单验证
+                const formData = vm.currentUser;
+                
+                if (!formData.username) {
+                    vm.layer.msg('用户名不能为空', {icon: 5});
+                    return;
+                }
+                
+                // 显式获取radio选中值，确保能正确获取
+                const selectedSex = $("input[name='sex']:checked").val();
+                if (selectedSex) {
+                    formData.sex = selectedSex;
+                }
+                
+                // 构建请求数据
+                const requestData = {
+                    username: formData.username,
+                    nickname: formData.nickname,
+                    sex: formData.sex || '', // 确保sex字段始终存在
+                    age: formData.age,
+                    phone: formData.phone,
+                    email: formData.email,
+                    birthday: formData.birthday,
+                    card: formData.card,
+                    content: formData.content || '',
+                    remarks: formData.remarks || ''
+                };
+                
+                // 如果有密码，则包含密码
+                if (formData.password) {
+                    requestData.password = formData.password;
+                }
+                
+                // 确定API接口
+                let apiUrl = '/user/add'; // 添加用户接口
+                if (formData.id) {
+                    apiUrl = '/user/edit'; // 编辑用户接口
+                    requestData.id = formData.id;
+                } else {
+                    // 添加用户时，根据角色选择不同的接口
+                    if (formData.role === 'admin') {
+                        apiUrl = '/user/addadmin';
+                    } else {
+                        apiUrl = '/user/add';
+                    }
+                }
+                
+                // 发送请求
+                axios.post(apiUrl, requestData)
+                .then(response => {
+                    if (response.data.code === 200) {
+                        vm.layer.close(vm.layerIndex);
+                        vm.layer.msg('操作成功', {icon: 6});
+                        vm.loadUserList(); // 重新加载用户列表
+                    } else {
+                        vm.layer.msg('操作失败: ' + (response.data.msg || '未知错误'), {icon: 5});
+                    }
+                })
+                .catch(error => {
+                    console.error('保存用户错误:', error);
+                    vm.layer.msg('操作失败，请稍后重试', {icon: 5});
+                });
+            },
+            
+            // 获取用户详情
+            getUserInfo: function(userId) {
+                const vm = this;
+                
+                axios.get(`/user/getUserInfo?id=${userId}`)
+                .then(response => {
+                    if (response.data.code === 200) {
+                        vm.currentUser = response.data.data;
+                        vm.openModal('查看用户详情');
+                    } else {
+                        vm.layer.msg('获取用户详情失败: ' + (response.data.msg || '未知错误'), {icon: 5});
+                    }
+                })
+                .catch(error => {
+                    console.error('获取用户详情错误:', error);
+                    vm.layer.msg('获取用户详情失败，请稍后重试', {icon: 5});
+                });
+            },
+            
+            // 删除用户
+            deleteUser: function(userId) {
+                const vm = this;
+                
+                this.layer.confirm('确定要删除该用户吗？', {
+                    icon: 3,
+                    title: '确认删除'
+                }, function(index) {
+                    // 发送删除请求
+                    axios.post(`/user/delete/${userId}`)
+                    .then(response => {
+                        if (response.data.code === 200) {
+                            vm.layer.close(index);
+                            vm.layer.msg('删除成功', {icon: 6});
+                            vm.loadUserList(); // 重新加载用户列表
+                        } else {
+                            vm.layer.msg('删除失败: ' + (response.data.msg || '未知错误'), {icon: 5});
+                        }
+                    })
+                    .catch(error => {
+                        console.error('删除用户错误:', error);
+                        vm.layer.msg('删除失败，请稍后重试', {icon: 5});
+                    });
+                });
+            },
+            
+            // 批量删除用户
+            deleteSelectedUsers: function() {
+                const vm = this;
+                
+                this.layer.confirm(`确定要删除选中的 ${this.selectedIds.length} 个用户吗？`, {
+                    icon: 3,
+                    title: '确认批量删除'
+                }, function(index) {
+                        // 发送批量删除请求
+                        // 循环删除选中的用户
+                        const deletePromises = vm.selectedIds.map(id => {
+                            return axios.post(`/user/delete/${id}`);
+                        });
+                    
+                    Promise.all(deletePromises)
+                    .then(responses => {
+                        // 检查是否所有删除都成功
+                        const allSuccess = responses.every(res => res.data.code === 200);
+                        
+                        if (allSuccess) {
+                            vm.layer.close(index);
+                            vm.layer.msg('批量删除成功', {icon: 6});
+                            vm.loadUserList(); // 重新加载用户列表
+                            vm.selectedIds = []; // 清空选中列表
+                        } else {
+                            vm.layer.msg('部分用户删除失败，请检查', {icon: 5});
+                        }
+                    })
+                    .catch(error => {
+                        console.error('批量删除用户错误:', error);
+                        vm.layer.msg('批量删除失败，请稍后重试', {icon: 5});
+                    });
+                });
+            }
+        }
+    });
+</script>
+</body>
+</html>

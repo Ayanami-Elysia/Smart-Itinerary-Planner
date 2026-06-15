@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <!-- 引入 layui.css -->
+        <link href="../static/css/layui.css" rel="stylesheet">
+        <!-- 引入 layui.js -->
+        <script src="../static/js/layui.js"></script>
+        <!-- 引入 css文件 -->
+        <link rel="stylesheet" href="../static/css/login.css">
+        <!-- 引入 Vue.js -->
+        <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+        <!-- 引入 axios 用于 API 请求 -->
+        <script src="https://cdn.jsdelivr.net/npm/axios@0.24.0/dist/axios.min.js"></script>
+        <title>登录</title>
+    </head>
+    <body>
+        <div id="app">
+            <!-- 最外层的大盒子 -->
+            <div class="box">
+                <!-- 滑动盒子 -->
+                <div class="pre-box" :style="{ transform: flag ? 'translateX(0%)' : 'translateX(100%)', backgroundColor: flag ? '#edd4dc' : '#c9e0ed' }">
+                    <h1>WELCOME</h1>
+                    <p>JOIN US!</p>
+                    <div class="img-box">
+                        <img :src="flag ? '../static/img/waoku.jpg' : '../static/img/wuwu.jpeg'" alt="">
+                    </div>
+                </div>
+                <!-- 注册盒子 -->
+                <div class="register-form">
+                    <!-- 标题盒子 -->
+                    <div class="title-box">
+                        <h1>注册</h1>
+                    </div>
+                    <!-- 输入框盒子 -->
+                    <div class="input-box">
+                        <input type="text" v-model="registerForm.username" placeholder="用户名">
+                        <input type="password" v-model="registerForm.password" placeholder="密码">
+                        <input type="password" v-model="registerForm.confirmPassword" placeholder="确认密码">
+                        <div class="layui-form">
+                            <input type="radio" name="register_role" v-model="registerForm.role" value="admin" title="管理员" checked>
+                            <input type="radio" name="register_role" v-model="registerForm.role" value="user" title="用户">
+                        </div>
+                    </div>
+                    <!-- 按钮盒子 -->
+                    <div class="btn-box">
+                        <button @click="register">注册</button>
+                        <!-- 绑定点击事件 -->
+                        <p @click="mySwitch">已有账号?去登录</p>
+                    </div>
+                </div>
+                <!-- 登录盒子 -->
+                <div class="login-form">
+                    <!-- 标题盒子 -->
+                    <div class="title-box">
+                        <h1>登录</h1>
+                    </div>
+                    <!-- 输入框盒子 -->
+                    <div class="input-box">
+                        <input type="text" v-model="loginForm.username" placeholder="用户名">
+                        <input type="password" v-model="loginForm.password" placeholder="密码">
+                        <div class="layui-form">
+                            <input type="radio" name="login_role" v-model="loginForm.role" value="admin" title="管理员" checked>
+                            <input type="radio" name="login_role" v-model="loginForm.role" value="user" title="用户">
+                        </div>
+                    </div>
+                    <!-- 按钮盒子 -->
+                    <div class="btn-box">
+                        <button @click="login">登录</button>
+                        <!-- 绑定点击事件 -->
+                        <p @click="mySwitch">没有账号?去注册</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            new Vue({
+                el: '#app',
+                data: {
+                    flag: true,
+                    loginForm: {
+                        username: '',
+                        password: '',
+                        role: 'admin'
+                    },
+                    registerForm: {
+                        username: '',
+                        password: '',
+                        confirmPassword: '',
+                        role: 'admin'
+                    }
+                },
+                mounted() {
+                    // 初始化layui表单
+                    layui.use('form', function() {
+                        var form = layui.form;
+                        form.render();
+                    });
+                },
+                methods: {
+                    mySwitch() {
+                        this.flag = !this.flag;
+                    },
+                    login() {
+                        // 验证表单
+                        if (!this.loginForm.username || !this.loginForm.password) {
+                            alert('请填写用户名和密码');
+                            return;
+                        }
+
+                        // 发送登录请求
+                        axios.post('/user/loginApi', this.loginForm)
+                            .then(response => {
+                                const data = response.data;
+                                if (data.code === 200) {
+                                    alert('登录成功');
+                                    console.log('登录成功，用户信息:', data.data);
+                                    // 根据角色跳转到不同页面
+                                    if (this.loginForm.role === 'admin') {
+                                        // 管理员跳转到管理员端
+                                        window.location.href = '/home';
+                                    } else {
+                                        // 普通用户跳转到用户端
+                                        window.location.href = '/frontend/attraction_home';
+                                    }
+                                } else {
+                                    alert(data.msg || '登录失败');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('登录错误:', error);
+                                alert('登录失败，请稍后重试');
+                            });
+                    },
+                    register() {
+                        // 验证表单
+                        if (!this.registerForm.username || !this.registerForm.password) {
+                            alert('请填写用户名和密码');
+                            return;
+                        }
+
+                        if (this.registerForm.password !== this.registerForm.confirmPassword) {
+                            alert('两次输入的密码不一致');
+                            return;
+                        }
+
+                        // 准备注册数据
+                        const registerData = {
+                            username: this.registerForm.username,
+                            password: this.registerForm.password,
+                            phone: '12345678900', // 这里可以要求用户输入，或者设置默认值
+                            email: 'example@example.com', // 同上
+                            role: this.registerForm.role
+                        };
+
+                        // 发送注册请求
+                        axios.post('/user/registerApi', registerData)
+                            .then(response => {
+                                const data = response.data;
+                                if (data.code === 200) {
+                                    alert('注册成功，请登录');
+                                    this.mySwitch(); // 切换到登录表单
+                                } else {
+                                    alert(data.message || '注册失败');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('注册错误:', error);
+                                alert('注册失败，请稍后重试');
+                            });
+                    },
+                    // 检查登录状态
+                    checkLogin() {
+                        axios.get('/user/checkLogin')
+                            .then(response => {
+                                const data = response.data;
+                                if (data.code === 200) {
+                                    console.log('用户已登录:', data.data);
+                                    // 如果用户已登录，根据角色跳转
+                                    if (data.data && data.data.role) {
+                                        if (data.data.role === 'admin') {
+                                            window.location.href = '/home';
+                                        } else {
+                                            window.location.href = '/frontend';
+                                        }
+                                    }
+                                }
+                            })
+                            .catch(error => {
+                                console.error('检查登录状态错误:', error);
+                            });
+                    },
+                    // 泡泡动画效果
+                    bubbleCreate() {
+                        const body = document.body;
+                        const bubble = document.createElement('span');
+                        let r = Math.random() * 5 + 25; // 半径大小为25~30
+                        bubble.style.width = r + 'px';
+                        bubble.style.height = r + 'px';
+                        bubble.style.left = Math.random() * innerWidth + 'px';
+                        body.appendChild(bubble);
+                        
+                        // 4秒后清除泡泡
+                        setTimeout(() => {
+                            bubble.remove();
+                        }, 5000);
+                    }
+                },
+                mounted() {
+                    // 页面加载时检查登录状态
+
+                    // 启动泡泡动画
+                    setInterval(() => {
+                        this.bubbleCreate();
+                    }, 200);
+                }
+            });
+        </script>
+    </body>
+</html>
